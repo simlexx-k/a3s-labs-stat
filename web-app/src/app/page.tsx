@@ -105,9 +105,13 @@ export default function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const requestInFlight = useRef(false);
   const previousNetwork = useRef<{ received: number; sent: number; timestamp: number } | null>(null);
 
   const loadStats = useCallback(async () => {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
+
     try {
       setRefreshing(true);
       const response = await fetch("/api/stats", { cache: "no-store" });
@@ -139,6 +143,7 @@ export default function Dashboard() {
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unable to reach the telemetry service");
     } finally {
+      requestInFlight.current = false;
       setLoading(false);
       setRefreshing(false);
     }

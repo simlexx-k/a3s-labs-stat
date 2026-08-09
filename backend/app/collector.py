@@ -4,12 +4,18 @@ import os
 import platform
 import socket
 import time
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from typing import Any
 
 import docker
 import psutil
 from docker.errors import DockerException
+from requests.exceptions import RequestException
+
+
+DOCKER_REQUEST_TIMEOUT_SECONDS = 5
+DOCKER_STATS_WORKERS = 8
 
 
 def _iso(timestamp: float) -> str:
@@ -146,10 +152,12 @@ def _format_container(container: Any) -> dict[str, Any]:
     host_config = attrs.get("HostConfig", {})
     network_settings = attrs.get("NetworkSettings", {})
 
-    try:
-        stats = container.stats(stream=False)
-    except DockerException:
-        stats = {}
+    stats = {}
+    if state.get("Running") or container.status == "running":
+        try:
+            stats = container.stats(stream=False)
+        except (DockerException, RequestException):
+            stats = {}
 
     memory_stats = stats.get("memory_stats", {})
     memory_usage = memory_stats.get("usage", 0)
@@ -187,13 +195,16 @@ def _format_container(container: Any) -> dict[str, Any]:
 
 
 def collect_docker_stats() -> dict[str, Any]:
+    client = None
     try:
-        client = docker.from_env()
+        client = docker.from_env(timeout=DOCKER_REQUEST_TIMEOUT_SECONDS)
         client.ping()
         version = client.version()
         info = client.info()
         containers = client.containers.list(all=True)
-    except DockerException as exc:
+    except (DockerException, RequestException) as exc:
+        if client is not None:
+            client.close()
         return {
             "available": False,
             "error": str(exc),
@@ -208,7 +219,14 @@ def collect_docker_stats() -> dict[str, Any]:
             },
         }
 
-    formatted = [_format_container(container) for container in containers]
+    if containers:
+        worker_count = min(DOCKER_STATS_WORKERS, len(containers))
+        with ThreadPoolExecutor(max_workers=worker_count) as executor:
+            formatted = list(executor.map(_format_container, containers))
+    else:
+        formatted = []
+
+    client.close()
     running = [container for container in formatted if container["status"] == "running"]
 
     return {
@@ -251,4 +269,3 @@ def collect_all_stats() -> dict[str, Any]:
         "vps": collect_vps_stats(),
         "docker": collect_docker_stats(),
     }
-

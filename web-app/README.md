@@ -21,7 +21,7 @@ origin is never included in the client bundle or displayed in the interface.
 The proxy requires the server-only variable below in every environment:
 
 ```bash
-TELEMETRY_API_URL=https://stats-api.example.com/api
+TELEMETRY_API_URL=https://stats-api-robyn.a3slabs.co.ke/api
 ```
 
 Do not prefix this variable with `NEXT_PUBLIC_`; doing so would expose its value

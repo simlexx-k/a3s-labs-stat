@@ -88,7 +88,7 @@ web-app
 Set this Vercel environment variable:
 
 ```text
-TELEMETRY_API_URL=https://stats-api.yourdomain.com/api
+TELEMETRY_API_URL=https://stats-api-robyn.a3slabs.co.ke/api
 ```
 
 `TELEMETRY_API_URL` is read only by the Next.js server and is not included in browser bundles. After changing it, redeploy the web app.

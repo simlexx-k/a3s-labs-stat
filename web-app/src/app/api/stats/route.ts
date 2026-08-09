@@ -1,8 +1,8 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 
-const requestTimeoutMs = 8_000;
+const requestTimeoutMs = 15_000;
 
 function getTelemetryUrl() {
   const baseUrl = process.env.TELEMETRY_API_URL;
@@ -14,10 +14,15 @@ function getTelemetryUrl() {
   }
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const telemetryUrl = getTelemetryUrl();
   if (!telemetryUrl) {
     console.error("[telemetry-proxy] TELEMETRY_API_URL is missing or invalid");
+    return NextResponse.json({ error: "Telemetry service unavailable" }, { status: 503 });
+  }
+
+  if (telemetryUrl.origin === request.nextUrl.origin) {
+    console.error("[telemetry-proxy] TELEMETRY_API_URL points to the web app origin");
     return NextResponse.json({ error: "Telemetry service unavailable" }, { status: 503 });
   }
 
