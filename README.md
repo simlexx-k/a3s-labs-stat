@@ -21,10 +21,11 @@ pip install -r requirements.txt
 python app/main.py --dev
 ```
 
-Frontend requires Node.js 20.9+ locally. The included Dockerfile uses Node 22.
+The web app requires Node.js 20.9+ locally. The included Dockerfile uses Node 22.
 
 ```bash
-cd frontend
+cd web-app
+cp .env.example .env.local
 npm install
 npm run dev
 ```
@@ -37,7 +38,7 @@ Open `http://localhost:3000`.
 docker compose up --build
 ```
 
-The frontend runs on `http://localhost:3000`. In local Docker mode it derives the API URL from the browser host and calls `http://<host>:8080/api`; in Vercel set `NEXT_PUBLIC_API_BASE_URL` to the Cloudflare Tunnel API URL.
+The web app runs on `http://localhost:3000`. Browsers request same-origin telemetry from `/api/stats`; the Next.js server proxies those requests to the backend using the server-only `TELEMETRY_API_URL` environment variable.
 
 The backend container mounts `/var/run/docker.sock` read-only so it can inspect Docker. Treat access to the Docker socket as privileged and only run this dashboard where trusted users can access it.
 
@@ -81,19 +82,21 @@ The tunnel service runs with host networking so it can reach Cloudflare reliably
 Import the GitHub repo in Vercel and set the project root directory to:
 
 ```text
-frontend
+web-app
 ```
 
 Set this Vercel environment variable:
 
 ```text
-NEXT_PUBLIC_API_BASE_URL=https://stats-api.yourdomain.com/api
+TELEMETRY_API_URL=https://stats-api.yourdomain.com/api
 ```
 
-After deployment, set `CORS_ORIGIN` on the backend to your frontend domain for stricter CORS, then restart the backend:
+`TELEMETRY_API_URL` is read only by the Next.js server and is not included in browser bundles. After changing it, redeploy the web app.
+
+The web app no longer requires cross-origin browser access to the backend. `CORS_ORIGIN` can remain restricted to a trusted origin, but CORS is not authentication; protect the Cloudflare endpoint with appropriate access controls if the telemetry is sensitive.
+
+To change the allowed browser origin, update the backend environment and restart it:
 
 ```yaml
 CORS_ORIGIN: https://istatus.a3slabs.co.ke
 ```
-
-For initial testing, the compose file uses `CORS_ORIGIN: "*"`. Lock it down once the Vercel URL is known.
