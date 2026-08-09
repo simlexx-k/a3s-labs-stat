@@ -145,15 +145,36 @@ def _container_block_io(stats: dict[str, Any]) -> dict[str, int]:
     return {"read_bytes": read_bytes, "write_bytes": write_bytes}
 
 
+def _container_status(attrs: dict[str, Any]) -> str:
+    state = attrs.get("State", {})
+    if isinstance(state, str):
+        return state
+    if state.get("Status"):
+        return state["Status"]
+    return "running" if state.get("Running") else "unknown"
+
+
 def _format_container(container: Any) -> dict[str, Any]:
     attrs = container.attrs
+    status = _container_status(attrs)
+
+    if status == "running":
+        try:
+            container.reload()
+            attrs = container.attrs
+            status = _container_status(attrs)
+        except (DockerException, RequestException):
+            pass
+
     state = attrs.get("State", {})
+    if not isinstance(state, dict):
+        state = {}
     config = attrs.get("Config", {})
     host_config = attrs.get("HostConfig", {})
     network_settings = attrs.get("NetworkSettings", {})
 
     stats = {}
-    if state.get("Running") or container.status == "running":
+    if status == "running":
         try:
             stats = container.stats(stream=False)
         except (DockerException, RequestException):
@@ -164,20 +185,22 @@ def _format_container(container: Any) -> dict[str, Any]:
     memory_limit = memory_stats.get("limit", 0)
 
     image_name = config.get("Image") or attrs.get("Image") or "unknown"
+    names = attrs.get("Names") or []
+    name = attrs.get("Name") or (names[0].lstrip("/") if names else container.short_id)
 
     return {
         "id": container.short_id,
         "full_id": container.id,
-        "name": container.name,
+        "name": name,
         "image": image_name,
         "image_tags": [image_name] if image_name != "unknown" else [],
-        "status": container.status,
+        "status": status,
         "created": attrs.get("Created"),
         "started_at": state.get("StartedAt"),
         "finished_at": state.get("FinishedAt"),
         "restart_count": attrs.get("RestartCount", 0),
         "ports": attrs.get("NetworkSettings", {}).get("Ports") or {},
-        "labels": config.get("Labels") or {},
+        "labels": config.get("Labels") or attrs.get("Labels") or {},
         "command": config.get("Cmd") or [],
         "entrypoint": config.get("Entrypoint") or [],
         "restart_policy": host_config.get("RestartPolicy") or {},
@@ -201,7 +224,7 @@ def collect_docker_stats() -> dict[str, Any]:
         client.ping()
         version = client.version()
         info = client.info()
-        containers = client.containers.list(all=True)
+        containers = client.containers.list(all=True, sparse=True)
     except (DockerException, RequestException) as exc:
         if client is not None:
             client.close()

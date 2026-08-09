@@ -1,8 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 45;
 
-const requestTimeoutMs = 15_000;
+const requestTimeoutMs = 30_000;
 
 function getTelemetryUrl() {
   const baseUrl = process.env.TELEMETRY_API_URL;

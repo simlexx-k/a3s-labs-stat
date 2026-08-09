@@ -52,6 +52,7 @@ class FakeContainer:
         self.short_id = name[:12]
         self.id = f"{name}-full-id"
         self.stats_calls = 0
+        self.reload_calls = 0
         self.attrs = {
             "State": {"Running": status == "running", "StartedAt": "", "FinishedAt": ""},
             "Config": {"Image": f"example/{name}:latest", "Labels": {}, "Cmd": [], "Entrypoint": []},
@@ -60,6 +61,9 @@ class FakeContainer:
             "RestartCount": 0,
             "Created": "",
         }
+
+    def reload(self) -> None:
+        self.reload_calls += 1
 
     def stats(self, stream: bool = False) -> dict:
         del stream
@@ -101,8 +105,11 @@ class DockerCollectorTests(unittest.TestCase):
         result = collector.collect_docker_stats()
 
         from_env.assert_called_once_with(timeout=collector.DOCKER_REQUEST_TIMEOUT_SECONDS)
+        client.containers.list.assert_called_once_with(all=True, sparse=True)
         self.assertGreater(activity["maximum"], 1)
         self.assertEqual(stopped.stats_calls, 0)
+        self.assertEqual(stopped.reload_calls, 0)
+        self.assertTrue(all(container.reload_calls == 1 for container in running))
         self.assertEqual(result["summary"]["containers_total"], 5)
         self.assertEqual(result["summary"]["containers_running"], 4)
         client.close.assert_called_once_with()
