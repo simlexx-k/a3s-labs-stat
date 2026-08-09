@@ -2,14 +2,19 @@
 
 import {
   Activity,
+  AlertCircle,
   Box,
+  CheckCircle2,
+  Clock3,
   Cpu,
   Database,
+  Gauge,
   HardDrive,
   MemoryStick,
   Network,
   RefreshCw,
-  Server,
+  ShieldCheck,
+  TerminalSquare,
 } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 
@@ -115,44 +120,72 @@ function formatUptime(seconds: number) {
   return `${days}d ${hours}h ${minutes}m`;
 }
 
-function StatCard({
+function formatNumber(value?: number | null) {
+  return typeof value === "number" ? value.toLocaleString() : "0";
+}
+
+function statusTone(value: number) {
+  if (value >= 85) return "danger";
+  if (value >= 70) return "warning";
+  return "ok";
+}
+
+function MetricCard({
   icon,
   label,
   value,
   detail,
+  percent,
 }: {
   icon: ReactNode;
   label: string;
   value: string;
   detail?: string;
+  percent?: number;
 }) {
   return (
-    <div className="stat-card">
-      <div className="stat-icon">{icon}</div>
-      <div>
-        <p className="stat-label">{label}</p>
-        <p className="stat-value">{value}</p>
-        {detail ? <p className="stat-detail">{detail}</p> : null}
+    <div className="metric-card">
+      <div className="metric-card-top">
+        <div className="metric-icon">{icon}</div>
+        {typeof percent === "number" ? <span className={`health-dot ${statusTone(percent)}`} /> : null}
       </div>
+      <p className="metric-label">{label}</p>
+      <p className="metric-value">{value}</p>
+      {detail ? <p className="metric-detail">{detail}</p> : null}
+      {typeof percent === "number" ? <Meter value={percent} tone={statusTone(percent)} /> : null}
     </div>
   );
 }
 
-function Meter({ value }: { value: number }) {
+function Meter({ value, tone = "ok" }: { value: number; tone?: "ok" | "warning" | "danger" }) {
   return (
     <div className="meter" aria-label={`${value}%`}>
-      <span style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
+      <span className={tone} style={{ width: `${Math.max(0, Math.min(100, value))}%` }} />
     </div>
+  );
+}
+
+function Panel({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="panel">
+      <div className="panel-heading">
+        <h2>{title}</h2>
+        {action ? <div className="panel-action">{action}</div> : null}
+      </div>
+      {children}
+    </section>
   );
 }
 
 export default function Dashboard() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadStats() {
     try {
+      setRefreshing(true);
       setError(null);
       const response = await fetch(`${getApiBaseUrl()}/stats`, { cache: "no-store" });
       if (!response.ok) throw new Error(`API returned ${response.status}`);
@@ -161,29 +194,58 @@ export default function Dashboard() {
       setError(err instanceof Error ? err.message : "Unable to load stats");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
 
   useEffect(() => {
-    loadStats();
-    const timer = window.setInterval(loadStats, 5000);
-    return () => window.clearInterval(timer);
+    const initial = window.setTimeout(() => {
+      void loadStats();
+    }, 0);
+    const timer = window.setInterval(() => {
+      void loadStats();
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(initial);
+      window.clearInterval(timer);
+    };
   }, []);
 
+  const containers = useMemo(() => stats?.docker.containers || [], [stats]);
   const busiestContainers = useMemo(() => {
-    return [...(stats?.docker.containers || [])].sort((a, b) => b.stats.cpu_percent - a.stats.cpu_percent);
+    return [...containers].sort((a, b) => b.stats.cpu_percent - a.stats.cpu_percent);
+  }, [containers]);
+  const runningContainers = containers.filter((container) => container.status === "running");
+  const totalNetwork = useMemo(() => {
+    return Object.values(stats?.vps.network || {}).reduce(
+      (total, item) => ({
+        in: total.in + item.bytes_recv,
+        out: total.out + item.bytes_sent,
+      }),
+      { in: 0, out: 0 },
+    );
   }, [stats]);
 
   return (
     <main className="shell">
       <header className="topbar">
-        <div>
-          <p className="eyebrow">A3S Labs Stat</p>
-          <h1>VPS and container telemetry</h1>
+        <div className="brand-block">
+          <div className="brand-mark"><TerminalSquare size={22} /></div>
+          <div>
+            <p className="eyebrow">A3S Labs Stat</p>
+            <h1>Infrastructure overview</h1>
+          </div>
         </div>
-        <button className="icon-button" onClick={loadStats} title="Refresh stats" type="button">
-          <RefreshCw size={18} />
-        </button>
+        <div className="topbar-actions">
+          <span className={`status-chip ${error ? "danger" : "ok"}`}>
+            {error ? <AlertCircle size={15} /> : <CheckCircle2 size={15} />}
+            {error ? "API degraded" : "Live"}
+          </span>
+          <button className="icon-button" onClick={loadStats} title="Refresh stats" type="button">
+            <RefreshCw className={refreshing ? "spin" : undefined} size={18} />
+          </button>
+        </div>
       </header>
 
       {error ? <div className="alert">Backend unavailable: {error}</div> : null}
@@ -191,55 +253,72 @@ export default function Dashboard() {
 
       {stats ? (
         <>
-          <section className="grid stats-grid">
-            <StatCard icon={<Server size={22} />} label="Host" value={stats.vps.hostname} detail={stats.vps.platform} />
-            <StatCard
+          <section className="hero-strip">
+            <div>
+              <p className="section-kicker">Host</p>
+              <h2>{stats.vps.hostname}</h2>
+              <p>{stats.vps.platform}</p>
+            </div>
+            <div className="hero-facts">
+              <span><Clock3 size={15} /> {formatUptime(stats.vps.uptime_seconds)}</span>
+              <span><ShieldCheck size={15} /> {stats.vps.architecture}</span>
+              <span><Box size={15} /> {stats.docker.summary.containers_running} running</span>
+            </div>
+          </section>
+
+          <section className="metric-grid">
+            <MetricCard
               icon={<Cpu size={22} />}
-              label="CPU"
+              label="CPU usage"
               value={`${stats.vps.cpu.percent}%`}
               detail={`${stats.vps.cpu.logical_cores ?? 0} threads, load ${stats.vps.cpu.load_average["1m"].toFixed(2)}`}
+              percent={stats.vps.cpu.percent}
             />
-            <StatCard
+            <MetricCard
               icon={<MemoryStick size={22} />}
               label="Memory"
               value={formatBytes(stats.vps.memory.used)}
               detail={`${stats.vps.memory.percent}% of ${formatBytes(stats.vps.memory.total)}`}
+              percent={stats.vps.memory.percent}
             />
-            <StatCard
-              icon={<Box size={22} />}
-              label="Docker"
-              value={stats.docker.available ? `${stats.docker.summary.containers_running} running` : "Offline"}
-              detail={stats.docker.available ? `${stats.docker.summary.containers_total} containers, ${stats.docker.summary.images} images` : stats.docker.error || ""}
+            <MetricCard
+              icon={<HardDrive size={22} />}
+              label="Primary disk"
+              value={`${stats.vps.disks[0]?.percent ?? 0}%`}
+              detail={stats.vps.disks[0] ? `${formatBytes(stats.vps.disks[0].used)} of ${formatBytes(stats.vps.disks[0].total)}` : "No disk data"}
+              percent={stats.vps.disks[0]?.percent ?? 0}
+            />
+            <MetricCard
+              icon={<Network size={22} />}
+              label="Network I/O"
+              value={`${formatBytes(totalNetwork.in)} in`}
+              detail={`${formatBytes(totalNetwork.out)} out across interfaces`}
             />
           </section>
 
-          <section className="panel-grid">
-            <div className="panel">
-              <div className="panel-heading">
-                <h2>VPS</h2>
-                <span>{formatUptime(stats.vps.uptime_seconds)} uptime</span>
+          <section className="content-grid">
+            <Panel title="Resource Pressure" action={<span>{new Date(stats.collected_at).toLocaleTimeString()}</span>}>
+              <div className="pressure-stack">
+                <div className="pressure-item">
+                  <div className="metric-row"><span>CPU</span><strong>{stats.vps.cpu.percent}%</strong></div>
+                  <Meter value={stats.vps.cpu.percent} tone={statusTone(stats.vps.cpu.percent)} />
+                </div>
+                <div className="pressure-item">
+                  <div className="metric-row"><span>Memory</span><strong>{stats.vps.memory.percent}%</strong></div>
+                  <Meter value={stats.vps.memory.percent} tone={statusTone(stats.vps.memory.percent)} />
+                </div>
+                <div className="pressure-item">
+                  <div className="metric-row"><span>Swap</span><strong>{stats.vps.swap.percent}%</strong></div>
+                  <Meter value={stats.vps.swap.percent} tone={statusTone(stats.vps.swap.percent)} />
+                </div>
               </div>
-              <div className="metric-row">
-                <span>CPU usage</span>
-                <strong>{stats.vps.cpu.percent}%</strong>
-              </div>
-              <Meter value={stats.vps.cpu.percent} />
-              <div className="metric-row">
-                <span>Memory usage</span>
-                <strong>{stats.vps.memory.percent}%</strong>
-              </div>
-              <Meter value={stats.vps.memory.percent} />
-              <div className="metric-row">
-                <span>Swap usage</span>
-                <strong>{stats.vps.swap.percent}%</strong>
-              </div>
-              <Meter value={stats.vps.swap.percent} />
-            </div>
+            </Panel>
 
-            <div className="panel">
-              <div className="panel-heading">
-                <h2>Docker Engine</h2>
-                <span>{stats.docker.version?.version || "Unavailable"}</span>
+            <Panel title="Docker Engine" action={<span>{stats.docker.version?.version || "Unavailable"}</span>}>
+              <div className="docker-summary">
+                <div><strong>{formatNumber(stats.docker.summary.containers_total)}</strong><span>Total</span></div>
+                <div><strong>{formatNumber(stats.docker.summary.containers_running)}</strong><span>Running</span></div>
+                <div><strong>{formatNumber(stats.docker.summary.images)}</strong><span>Images</span></div>
               </div>
               <dl className="info-list">
                 <div><dt>OS</dt><dd>{stats.docker.info.operating_system || "N/A"}</dd></div>
@@ -247,14 +326,10 @@ export default function Dashboard() {
                 <div><dt>Cgroup</dt><dd>{stats.docker.info.cgroup_driver || "N/A"}</dd></div>
                 <div><dt>Root</dt><dd>{stats.docker.info.docker_root_dir || "N/A"}</dd></div>
               </dl>
-            </div>
+            </Panel>
           </section>
 
-          <section className="panel">
-            <div className="panel-heading">
-              <h2>Running containers and apps</h2>
-              <span>Updated {new Date(stats.collected_at).toLocaleTimeString()}</span>
-            </div>
+          <Panel title="Containers and Apps" action={<span>{runningContainers.length} running</span>}>
             <div className="table-wrap">
               <table>
                 <thead>
@@ -273,18 +348,21 @@ export default function Dashboard() {
                     <tr key={container.id}>
                       <td>
                         <div className="container-name">{container.name}</div>
-                        <div className="muted">{container.image_tags[0] || container.image.slice(0, 18)}</div>
+                        <div className="muted truncate">{container.image_tags[0] || container.image}</div>
                       </td>
                       <td><span className={`pill ${container.status}`}>{container.status}</span></td>
-                      <td>{container.stats.cpu_percent}%</td>
                       <td>
-                        {formatBytes(container.stats.memory_usage)}
+                        <strong>{container.stats.cpu_percent}%</strong>
+                        <Meter value={container.stats.cpu_percent} tone={statusTone(container.stats.cpu_percent)} />
+                      </td>
+                      <td>
+                        <strong>{formatBytes(container.stats.memory_usage)}</strong>
                         <div className="muted">{container.stats.memory_percent}%</div>
                       </td>
-                      <td>
+                      <td className="inline-metric">
                         <Network size={14} /> {formatBytes(container.stats.network.rx_bytes)} / {formatBytes(container.stats.network.tx_bytes)}
                       </td>
-                      <td>
+                      <td className="inline-metric">
                         <Database size={14} /> {formatBytes(container.stats.block_io.read_bytes)} / {formatBytes(container.stats.block_io.write_bytes)}
                       </td>
                       <td>{container.restart_count}</td>
@@ -298,14 +376,10 @@ export default function Dashboard() {
                 </tbody>
               </table>
             </div>
-          </section>
+          </Panel>
 
-          <section className="panel-grid">
-            <div className="panel">
-              <div className="panel-heading">
-                <h2>Disks</h2>
-                <HardDrive size={18} />
-              </div>
+          <section className="content-grid">
+            <Panel title="Disk Usage" action={<Gauge size={18} />}>
               <div className="stack">
                 {stats.vps.disks.map((disk) => (
                   <div key={`${disk.device}-${disk.mountpoint}`} className="compact-metric">
@@ -313,18 +387,14 @@ export default function Dashboard() {
                       <span>{disk.mountpoint}</span>
                       <strong>{disk.percent}%</strong>
                     </div>
-                    <Meter value={disk.percent} />
+                    <Meter value={disk.percent} tone={statusTone(disk.percent)} />
                     <p className="muted">{formatBytes(disk.used)} of {formatBytes(disk.total)} on {disk.device}</p>
                   </div>
                 ))}
               </div>
-            </div>
+            </Panel>
 
-            <div className="panel">
-              <div className="panel-heading">
-                <h2>Network</h2>
-                <Activity size={18} />
-              </div>
+            <Panel title="Network Interfaces" action={<Activity size={18} />}>
               <div className="stack">
                 {Object.entries(stats.vps.network).slice(0, 6).map(([name, net]) => (
                   <div key={name} className="network-row">
@@ -334,11 +404,10 @@ export default function Dashboard() {
                   </div>
                 ))}
               </div>
-            </div>
+            </Panel>
           </section>
         </>
       ) : null}
     </main>
   );
 }
-
