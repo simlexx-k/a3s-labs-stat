@@ -90,10 +90,10 @@ Set this Vercel environment variable:
 NEXT_PUBLIC_API_BASE_URL=https://stats-api.yourdomain.com/api
 ```
 
-After deployment, set `CORS_ORIGIN` on the backend to your Vercel domain for stricter CORS, then restart the backend:
+After deployment, set `CORS_ORIGIN` on the backend to your frontend domain for stricter CORS, then restart the backend:
 
 ```yaml
-CORS_ORIGIN: https://your-vercel-app.vercel.app
+CORS_ORIGIN: https://istatus.a3slabs.co.ke
 ```
 
 For initial testing, the compose file uses `CORS_ORIGIN: "*"`. Lock it down once the Vercel URL is known.
