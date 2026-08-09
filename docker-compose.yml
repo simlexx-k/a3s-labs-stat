@@ -1,0 +1,37 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      ROBYN_HOST: 0.0.0.0
+      ROBYN_PORT: 8080
+      CORS_ORIGIN: "*"
+    ports:
+      - "8080:8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: auto
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: auto
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --protocol http2 run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    network_mode: host
+    depends_on:
+      - backend
+    restart: unless-stopped
+    profiles:
+      - tunnel
