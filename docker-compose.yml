@@ -5,7 +5,7 @@ services:
     environment:
       ROBYN_HOST: 0.0.0.0
       ROBYN_PORT: 8080
-      CORS_ORIGIN: "*"
+      CORS_ORIGIN: https://a3s-labs-stat.vercel.app
     ports:
       - "8080:8080"
     volumes:
