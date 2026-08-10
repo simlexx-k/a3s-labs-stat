@@ -13,6 +13,7 @@ import {
   Gauge,
   HardDrive,
   Layers3,
+  LogOut,
   Menu,
   MemoryStick,
   Network,
@@ -24,7 +25,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ContainersTable } from "@/components/dashboard/containers-table";
 import { Sparkline, TrendChart } from "@/components/dashboard/charts";
-import { IconButton } from "@/components/ui/icon-button";
+import { IconButton, IconLink } from "@/components/ui/icon-button";
 import {
   formatBytes,
   formatNumber,
@@ -219,6 +220,9 @@ export default function Dashboard() {
             <IconButton label="Refresh telemetry" onClick={() => void loadStats()} disabled={refreshing}>
               <RefreshCw className={refreshing ? "spin" : undefined} size={18} />
             </IconButton>
+            <IconLink href="/logout" label="Sign out">
+              <LogOut size={18} />
+            </IconLink>
           </div>
         </header>
 

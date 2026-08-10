@@ -88,6 +88,7 @@ async function openDashboard(page: Page) {
 test("desktop dashboard has no viewport overflow", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDashboard(page);
+  await expect(page.getByRole("link", { name: "Sign out" })).toHaveAttribute("href", "/logout");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ fullPage: true, path: "/tmp/a3s-dashboard-desktop.png" });
 });

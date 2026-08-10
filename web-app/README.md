@@ -55,6 +55,11 @@ Next.js validates its signature, issuer, audience, expiry, and email claim on
 every protected request. This also rejects requests made directly to the Vercel
 deployment URL without passing through Cloudflare Access.
 
+The persistent sign-out control links to `/logout`, which redirects to the
+application-domain Cloudflare Access logout endpoint. Cloudflare clears the
+application authorization cookie immediately and revokes the user's Access
+session across protected applications.
+
 ### Backend service authentication
 
 Create a second Cloudflare Access application for
