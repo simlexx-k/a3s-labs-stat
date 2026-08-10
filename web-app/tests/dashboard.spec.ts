@@ -52,8 +52,15 @@ function statsFixture() {
 }
 
 function container(name: string, image: string, status: string, cpu: number, memory: number, memoryPercent: number, restarts: number) {
+  const fullId = Array.from(name)
+    .map((character) => character.charCodeAt(0).toString(16))
+    .join("")
+    .padEnd(64, "0")
+    .slice(0, 64);
+
   return {
-    id: `${name.replaceAll("-", "")}5dd8a74301c88b412`,
+    id: fullId.slice(0, 12),
+    full_id: fullId,
     name,
     image,
     image_tags: [image],
@@ -89,6 +96,7 @@ test("desktop dashboard has no viewport overflow", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDashboard(page);
   await expect(page.getByRole("link", { name: "Sign out" })).toHaveAttribute("href", "/logout");
+  await expect(page.getByRole("link", { name: "View api-gateway logs" })).toHaveAttribute("href", /\/containers\/[a-f0-9]{64}\/logs/);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ fullPage: true, path: "/tmp/a3s-dashboard-desktop.png" });
 });
@@ -97,6 +105,8 @@ test("mobile dashboard and navigation fit the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openDashboard(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole("button", { name: "Expand api-gateway" }).click();
+  await expect(page.getByRole("link", { name: "Open logs" })).toHaveAttribute("href", /\/containers\/[a-f0-9]{64}\/logs/);
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(page.getByRole("navigation", { name: "Dashboard navigation" })).toBeVisible();
   await page.waitForTimeout(250);

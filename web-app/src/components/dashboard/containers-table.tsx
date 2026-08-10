@@ -1,7 +1,9 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Network, Search, ServerCog } from "lucide-react";
+import { ChevronDown, ChevronRight, Network, ScrollText, Search, ServerCog } from "lucide-react";
+import Link from "next/link";
 import { useMemo, useState } from "react";
+import { IconLink } from "@/components/ui/icon-button";
 import { formatBytes, healthTone, type Container } from "@/lib/telemetry";
 
 type Filter = "all" | "running" | "stopped";
@@ -57,6 +59,7 @@ export function ContainersTable({ containers }: { containers: Container[] }) {
               <th>Memory</th>
               <th>Traffic</th>
               <th>Restarts</th>
+              <th><span className="sr-only">Container logs</span></th>
             </tr>
           </thead>
           <tbody>
@@ -73,7 +76,7 @@ export function ContainersTable({ containers }: { containers: Container[] }) {
             })}
             {!visibleContainers.length ? (
               <tr>
-                <td className="table-empty" colSpan={7}>
+                <td className="table-empty" colSpan={8}>
                   <ServerCog size={24} />
                   <strong>No matching containers</strong>
                   <span>Change the search or status filter.</span>
@@ -121,11 +124,16 @@ function ContainerRows({ container, expanded, onToggle }: { container: Container
           <span className="traffic-cell"><Network size={14} /> {formatBytes(container.stats.network.rx_bytes)} / {formatBytes(container.stats.network.tx_bytes)}</span>
         </td>
         <td><span className={container.restart_count > 0 ? "restart-count warning" : "restart-count"}>{container.restart_count}</span></td>
+        <td className="container-action-cell">
+          <IconLink href={`/containers/${container.full_id}/logs`} label={`View ${container.name} logs`}>
+            <ScrollText size={16} />
+          </IconLink>
+        </td>
       </tr>
       {expanded ? (
         <tr className="detail-row">
           <td />
-          <td colSpan={6}>
+          <td colSpan={7}>
             <dl className="container-details">
               <div><dt>CPU</dt><dd>{container.stats.cpu_percent.toFixed(1)}%</dd></div>
               <div><dt>Memory</dt><dd>{formatBytes(container.stats.memory_usage)} ({container.stats.memory_percent.toFixed(1)}%)</dd></div>
@@ -136,6 +144,10 @@ function ContainerRows({ container, expanded, onToggle }: { container: Container
               <div><dt>Ports</dt><dd>{ports.length ? ports.map(([port]) => port).join(", ") : "None exposed"}</dd></div>
               <div><dt>Block read</dt><dd>{formatBytes(container.stats.block_io.read_bytes)}</dd></div>
               <div><dt>Block write</dt><dd>{formatBytes(container.stats.block_io.write_bytes)}</dd></div>
+              <div className="container-logs-action">
+                <dt>Diagnostics</dt>
+                <dd><Link href={`/containers/${container.full_id}/logs`}><ScrollText size={14} /> Open logs</Link></dd>
+              </div>
             </dl>
           </td>
         </tr>

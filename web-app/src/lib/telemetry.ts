@@ -15,6 +15,7 @@ export type NetworkCounters = {
 
 export type Container = {
   id: string;
+  full_id: string;
   name: string;
   image: string;
   image_tags: string[];
@@ -32,6 +33,27 @@ export type Container = {
     network: { rx_bytes: number; tx_bytes: number };
     block_io: { read_bytes: number; write_bytes: number };
     pids: number;
+  };
+};
+
+export type ContainerLogEntry = {
+  timestamp: string | null;
+  stream: "stdout" | "stderr";
+  message: string;
+  truncated: boolean;
+};
+
+export type ContainerLogs = {
+  collected_at: string;
+  container: Pick<Container, "id" | "full_id" | "name" | "image" | "status">;
+  query: { tail: number; since: number | null };
+  entries: ContainerLogEntry[];
+  summary: {
+    lines: number;
+    stdout_lines: number;
+    stderr_lines: number;
+    bytes: number;
+    truncated: boolean;
   };
 };
 

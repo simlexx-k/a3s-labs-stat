@@ -19,8 +19,16 @@ except ModuleNotFoundError:
     class DockerException(Exception):
         pass
 
+    class APIError(DockerException):
+        pass
+
+    class NotFound(APIError):
+        pass
+
     docker_module.from_env = Mock()
+    docker_errors_module.APIError = APIError
     docker_errors_module.DockerException = DockerException
+    docker_errors_module.NotFound = NotFound
     sys.modules["docker"] = docker_module
     sys.modules["docker.errors"] = docker_errors_module
 
