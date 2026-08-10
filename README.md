@@ -40,7 +40,16 @@ docker compose up --build
 
 The web app runs on `http://localhost:3000`. Browsers request same-origin telemetry from `/api/stats`; the Next.js server proxies those requests to the backend using the server-only `TELEMETRY_API_URL` environment variable.
 
-The backend container mounts `/var/run/docker.sock` read-only so it can inspect Docker. Treat access to the Docker socket as privileged and only run this dashboard where trusted users can access it.
+The backend container mounts `/var/run/docker.sock` read-only so it can inspect Docker. Treat access to the Docker socket as privileged and only run this dashboard where trusted users can access it. Port `8080` is bound to VPS loopback so it is available to `cloudflared` without being published on the VPS public interfaces.
+
+Production authentication requires these values in the Compose `.env` file:
+
+```bash
+CF_ACCESS_TEAM_DOMAIN=https://your-team.cloudflareaccess.com
+CF_ACCESS_AUD=your-dashboard-application-audience
+CF_ACCESS_CLIENT_ID=your-backend-service-token-client-id
+CF_ACCESS_CLIENT_SECRET=your-backend-service-token-secret
+```
 
 ## GitHub, Vercel, and Cloudflare Tunnel Deployment
 
@@ -77,6 +86,10 @@ docker compose --profile tunnel up -d --build
 
 The tunnel service runs with host networking so it can reach Cloudflare reliably on this VPS and route to the Robyn API at `http://localhost:8080`. This exposes the backend through Cloudflare without opening port `8080` to the public internet.
 
+Create a Cloudflare Access self-hosted application for the backend hostname and
+attach a Service Auth policy that accepts only the service token configured on
+the Next.js server.
+
 ### 3. Deploy the frontend on Vercel
 
 Import the GitHub repo in Vercel and set the project root directory to:
@@ -85,13 +98,29 @@ Import the GitHub repo in Vercel and set the project root directory to:
 web-app
 ```
 
-Set this Vercel environment variable:
+Set these Vercel environment variables:
 
 ```text
 TELEMETRY_API_URL=https://stats-api-robyn.a3slabs.co.ke/api
+CF_ACCESS_TEAM_DOMAIN=https://your-team.cloudflareaccess.com
+CF_ACCESS_AUD=your-dashboard-application-audience
+CF_ACCESS_CLIENT_ID=your-backend-service-token-client-id
+CF_ACCESS_CLIENT_SECRET=your-backend-service-token-secret
 ```
 
-`TELEMETRY_API_URL` is read only by the Next.js server and is not included in browser bundles. After changing it, redeploy the web app.
+These variables are read only by the Next.js server and are not included in browser bundles. After changing them, redeploy the web app.
+
+### 4. Require email OTP for the dashboard
+
+In Cloudflare Zero Trust, add One-Time PIN as an identity provider. Create a
+self-hosted Access application covering `istatus.a3slabs.co.ke/*`, choose OTP as
+its only login method, and allow only explicit email addresses. Copy that
+application's Audience (AUD) tag into `CF_ACCESS_AUD`.
+
+Cloudflare handles the login and OTP email. The Next.js app independently
+validates the Access JWT on page and API requests, and production fails closed
+if the Access configuration is absent. OTP codes and user passwords are never
+stored by this repository.
 
 The web app no longer requires cross-origin browser access to the backend. `CORS_ORIGIN` can remain restricted to a trusted origin, but CORS is not authentication; protect the Cloudflare endpoint with appropriate access controls if the telemetry is sensitive.
 
