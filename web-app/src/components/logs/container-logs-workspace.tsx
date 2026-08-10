@@ -1,25 +1,23 @@
 "use client";
 
 import {
-  Activity,
   AlertTriangle,
-  ArrowLeft,
   ArrowUpDown,
   Check,
   ChevronsDown,
   Clipboard,
   Download,
   Eraser,
-  LogOut,
   RefreshCw,
   Search,
   SquareTerminal,
   WrapText,
 } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { IconButton, IconLink } from "@/components/ui/icon-button";
-import { formatBytes, type ContainerLogEntry, type ContainerLogs } from "@/lib/telemetry";
+import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
+import { IconButton } from "@/components/ui/icon-button";
+import { formatBytes, type Container, type ContainerLogEntry, type ContainerLogs, type Stats } from "@/lib/telemetry";
 
 type StreamFilter = "all" | "stdout" | "stderr";
 type Severity = "error" | "warning" | "info" | "debug" | "other";
@@ -70,8 +68,25 @@ function safeFilename(value: string) {
   return value.toLowerCase().replace(/[^a-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "container";
 }
 
-export function ContainerLogsWorkspace({ containerId }: { containerId: string }) {
+async function readJson<T>(response: Response, errorMessage: string): Promise<T> {
+  if (!response.headers.get("content-type")?.toLowerCase().includes("application/json")) {
+    throw new Error(errorMessage);
+  }
+
+  try {
+    return await response.json() as T;
+  } catch {
+    throw new Error(errorMessage);
+  }
+}
+
+export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialContainerId?: string }) {
+  const router = useRouter();
   const [logs, setLogs] = useState<ContainerLogs | null>(null);
+  const [availableContainers, setAvailableContainers] = useState<Container[]>([]);
+  const [hostname, setHostname] = useState<string>();
+  const [selectedContainerId, setSelectedContainerId] = useState(initialContainerId);
+  const [containersLoading, setContainersLoading] = useState(true);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,11 +103,42 @@ export function ContainerLogsWorkspace({ containerId }: { containerId: string })
   const [exportFormat, setExportFormat] = useState<ExportFormat>("text");
   const [copied, setCopied] = useState(false);
   const requestInFlight = useRef(false);
+  const requestController = useRef<AbortController | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
+  const loadContainerOptions = useCallback(async () => {
+    try {
+      const response = await fetch("/api/stats", { cache: "no-store" });
+      if (!response.ok) throw new Error("Container inventory unavailable");
+      const stats = await readJson<Stats>(response, "Container inventory unavailable");
+      setAvailableContainers(stats.docker.containers);
+      setHostname(stats.vps.hostname);
+      if (!initialContainerId && stats.docker.containers.length) {
+        const firstContainerId = stats.docker.containers[0].full_id;
+        setSelectedContainerId(firstContainerId);
+        router.replace(`/logs?container=${encodeURIComponent(firstContainerId)}`, { scroll: false });
+      }
+    } catch {
+      setAvailableContainers([]);
+    } finally {
+      setContainersLoading(false);
+    }
+  }, [initialContainerId, router]);
+
+  useEffect(() => {
+    const initial = window.setTimeout(() => void loadContainerOptions(), 0);
+    return () => window.clearTimeout(initial);
+  }, [loadContainerOptions]);
+
   const loadLogs = useCallback(async () => {
+    if (!selectedContainerId) {
+      setLoading(false);
+      return;
+    }
     if (requestInFlight.current) return;
     requestInFlight.current = true;
+    const controller = new AbortController();
+    requestController.current = controller;
     setRefreshing(true);
 
     const rangeSeconds = timeRangeSeconds[timeRange];
@@ -102,24 +148,30 @@ export function ContainerLogsWorkspace({ containerId }: { containerId: string })
     if (since !== null) query.set("since", String(since));
 
     try {
-      const response = await fetch(`/api/containers/${encodeURIComponent(containerId)}/logs?${query}`, { cache: "no-store" });
-      const body = (await response.json()) as ContainerLogs | { error?: string };
+      const response = await fetch(`/api/containers/${encodeURIComponent(selectedContainerId)}/logs?${query}`, { cache: "no-store", signal: controller.signal });
+      const body = await readJson<ContainerLogs | { error?: string }>(response, "The logs service returned an unexpected response");
       if (!response.ok) throw new Error("error" in body && body.error ? body.error : "Unable to load container logs");
       setLogs(body as ContainerLogs);
       setError(null);
     } catch (err) {
+      if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Unable to load container logs");
     } finally {
-      requestInFlight.current = false;
-      setLoading(false);
-      setRefreshing(false);
+      if (requestController.current === controller) {
+        requestController.current = null;
+        requestInFlight.current = false;
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [containerId, sessionSince, tail, timeRange]);
+  }, [selectedContainerId, sessionSince, tail, timeRange]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => void loadLogs(), 0);
     return () => window.clearTimeout(initial);
   }, [loadLogs]);
+
+  useEffect(() => () => requestController.current?.abort(), []);
 
   useEffect(() => {
     if (!refreshInterval) return;
@@ -166,6 +218,18 @@ export function ContainerLogsWorkspace({ containerId }: { containerId: string })
     setStream("all");
     setSeverity("all");
     setTimeRange("all");
+  };
+
+  const selectContainer = (containerId: string) => {
+    requestController.current?.abort();
+    requestController.current = null;
+    requestInFlight.current = false;
+    setSelectedContainerId(containerId);
+    setLogs(null);
+    setError(null);
+    setLoading(true);
+    setSessionSince(null);
+    router.replace(`/logs?container=${encodeURIComponent(containerId)}`, { scroll: false });
   };
 
   const clearView = () => {
@@ -215,27 +279,27 @@ export function ContainerLogsWorkspace({ containerId }: { containerId: string })
     window.setTimeout(() => URL.revokeObjectURL(url), 0);
   };
 
-  const containerName = logs?.container.name ?? containerId.slice(0, 12);
+  const selectedContainer = availableContainers.find((container) => container.full_id === selectedContainerId);
+  const containerName = logs?.container.name ?? selectedContainer?.name ?? (selectedContainerId ? selectedContainerId.slice(0, 12) : "Select a container");
+  const containerImage = logs?.container.image ?? selectedContainer?.image_tags[0] ?? selectedContainer?.image;
   const paused = refreshInterval === 0;
 
   return (
-    <main className="logs-shell">
-      <header className="logs-topbar">
-        <Link className="logs-brand" href="/">
-          <span className="brand-mark"><Activity size={20} /></span>
-          <span><strong>A3S</strong><small>Infrastructure</small></span>
-        </Link>
-        <div className="logs-topbar-title"><span>Workloads</span><strong>Container logs</strong></div>
-        <div className="logs-topbar-actions">
+    <InfrastructureShell
+      activeView="logs"
+      connectionLabel={error ? "Logs interrupted" : logs ? "Logs connected" : "Connecting"}
+      connectionTone={error ? "error" : logs ? "live" : "pending"}
+      containerCount={availableContainers.length}
+      contentClassName="logs-content"
+      hostname={hostname}
+      lastUpdated={logs?.collected_at ? new Date(logs.collected_at) : null}
+      locationTitle="Container logs"
+      topbarActions={(
           <IconButton label="Refresh logs" onClick={() => void loadLogs()} disabled={refreshing}>
             <RefreshCw className={refreshing ? "spin" : undefined} size={18} />
           </IconButton>
-          <IconLink href="/logout" label="Sign out"><LogOut size={18} /></IconLink>
-        </div>
-      </header>
-
-      <div className="logs-content">
-        <Link className="logs-back" href="/#containers"><ArrowLeft size={15} />Containers</Link>
+      )}
+    >
 
         <header className="logs-page-heading">
           <div>
@@ -243,10 +307,20 @@ export function ContainerLogsWorkspace({ containerId }: { containerId: string })
               <h1>{containerName}</h1>
               {logs ? <span className={`status-badge ${logs.container.status}`}><i />{logs.container.status}</span> : null}
             </div>
-            <p>{logs?.container.image ?? "Loading container metadata"}</p>
+            <p>{containerImage ?? (containersLoading ? "Loading container inventory" : "Container metadata unavailable")}</p>
           </div>
-          <div className={`logs-live-state ${error ? "error" : paused ? "paused" : "live"}`}>
-            <i />{error ? "Updates interrupted" : paused ? "Polling paused" : "Polling active"}
+          <div className="logs-heading-actions">
+            <label className="logs-container-picker">
+              <span>Container</span>
+              <select aria-label="Container" disabled={containersLoading || (!availableContainers.length && !selectedContainerId)} onChange={(event) => selectContainer(event.target.value)} value={selectedContainerId}>
+                {!selectedContainerId ? <option value="">No container selected</option> : null}
+                {selectedContainerId && !selectedContainer ? <option value={selectedContainerId}>{containerName}</option> : null}
+                {availableContainers.map((container) => <option key={container.full_id} value={container.full_id}>{container.name} · {container.status}</option>)}
+              </select>
+            </label>
+            <div className={`logs-live-state ${error ? "error" : paused ? "paused" : "live"}`}>
+              <i />{error ? "Updates interrupted" : paused ? "Polling paused" : "Polling active"}
+            </div>
           </div>
         </header>
 
@@ -342,7 +416,6 @@ export function ContainerLogsWorkspace({ containerId }: { containerId: string })
             <span>{logs?.summary.truncated ? "More lines exist outside the selected tail" : `${filteredEntries.length.toLocaleString()} visible lines`}</span>
           </footer>
         </section>
-      </div>
-    </main>
+    </InfrastructureShell>
   );
 }

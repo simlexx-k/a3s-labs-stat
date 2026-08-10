@@ -41,7 +41,7 @@ docker compose up --build
 
 The web app runs on `http://localhost:3000`. Browsers request same-origin telemetry from `/api/stats`; the Next.js server proxies those requests to the backend using the server-only `TELEMETRY_API_URL` environment variable.
 
-Container logs are available from each workload row. The browser requests the authenticated same-origin `/api/containers/:id/logs` route, and the Next.js server proxies it to the backend. Each request is limited to 5,000 lines and log responses are never cached. Exports are generated locally from the currently visible filtered rows.
+Container logs are available from the shared Logs navigation item or any workload row. The `/logs` screen provides container selection within the same application shell as the dashboard. The browser requests the authenticated same-origin `/api/containers/:id/logs` route, and the Next.js server proxies it to the backend. Each request is limited to 5,000 lines and log responses are never cached. Exports are generated locally from the currently visible filtered rows.
 
 The backend container mounts `/var/run/docker.sock` read-only so it can inspect Docker. Treat access to the Docker socket as privileged and only run this dashboard where trusted users can access it. Port `8080` is bound to VPS loopback so it is available to `cloudflared` without being published on the VPS public interfaces.
 

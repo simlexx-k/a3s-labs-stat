@@ -24,12 +24,45 @@ const logsFixture = {
 };
 
 async function openLogs(page: Page) {
+  await page.route(/\/api\/stats$/, async (route) => {
+    await route.fulfill({
+      body: JSON.stringify({
+        vps: { hostname: "a3s-prod-01" },
+        docker: {
+          containers: [
+            {
+              ...logsFixture.container,
+              image_tags: [logsFixture.container.image],
+              started_at: "2026-08-07T09:40:00Z",
+              restart_count: 0,
+              ports: {},
+              labels: {},
+              networks: ["a3s_default"],
+              stats: {
+                cpu_percent: 18.4,
+                memory_usage: 734003200,
+                memory_limit: 8589934592,
+                memory_percent: 8.5,
+                network: { rx_bytes: 528482304, tx_bytes: 214958080 },
+                block_io: { read_bytes: 1073741824, write_bytes: 429916160 },
+                pids: 23,
+              },
+            },
+          ],
+        },
+      }),
+      contentType: "application/json",
+      status: 200,
+    });
+  });
   await page.route(/\/api\/containers\/[a-f0-9]+\/logs/, async (route) => {
     await route.fulfill({ body: JSON.stringify(logsFixture), contentType: "application/json", status: 200 });
   });
-  await page.goto(`http://localhost:3001/containers/${containerId}/logs`);
+  await page.goto(`http://localhost:3001/logs?container=${containerId}`);
   await expect(page.getByRole("heading", { name: "api-gateway" })).toBeVisible();
   await expect(page.getByText("INFO service ready on port 8080")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveClass(/active/);
+  await expect(page.getByRole("combobox", { name: "Container" })).toHaveValue(containerId);
 }
 
 test("filters logs and exports the visible subset", async ({ page }) => {
@@ -63,5 +96,24 @@ test("mobile logs workspace fits the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openLogs(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await expect(page.getByRole("navigation", { name: "Dashboard navigation" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveClass(/active/);
+  await page.getByRole("button", { name: "Close navigation" }).last().click();
   await page.screenshot({ fullPage: true, path: "/tmp/a3s-container-logs-mobile.png" });
+});
+
+test("non-JSON log responses produce a safe service error", async ({ page }) => {
+  await page.route(/\/api\/stats$/, async (route) => {
+    await route.fulfill({ body: JSON.stringify({ error: "Telemetry unavailable" }), contentType: "application/json", status: 502 });
+  });
+  await page.route(/\/api\/containers\/[a-f0-9]+\/logs/, async (route) => {
+    await route.fulfill({ body: "<!DOCTYPE html><title>Gateway error</title>", contentType: "text/html", status: 502 });
+  });
+
+  await page.goto(`http://localhost:3001/logs?container=${containerId}`);
+  await expect(page.getByText("Logs unavailable", { exact: true })).toBeVisible();
+  await expect(page.getByText("The logs service returned an unexpected response")).toBeVisible();
+  await expect(page.locator("body")).not.toContainText("Unexpected token");
+  await expect(page.locator("body")).not.toContainText("DOCTYPE");
 });

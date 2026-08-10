@@ -1,31 +1,25 @@
 "use client";
 
 import {
-  Activity,
   AlertTriangle,
   ArrowDown,
   ArrowUp,
-  Box,
   Boxes,
   Clock3,
   Cpu,
   Database,
-  Gauge,
   HardDrive,
   Layers3,
-  LogOut,
-  Menu,
   MemoryStick,
-  Network,
   RefreshCw,
   Server,
   ShieldCheck,
-  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ContainersTable } from "@/components/dashboard/containers-table";
 import { Sparkline, TrendChart } from "@/components/dashboard/charts";
-import { IconButton, IconLink } from "@/components/ui/icon-button";
+import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
+import { IconButton } from "@/components/ui/icon-button";
 import {
   formatBytes,
   formatNumber,
@@ -105,7 +99,6 @@ export default function Dashboard() {
   const [refreshInterval, setRefreshInterval] = useState(5000);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const requestInFlight = useRef(false);
   const previousNetwork = useRef<{ received: number; sent: number; timestamp: number } | null>(null);
 
@@ -169,48 +162,17 @@ export default function Dashboard() {
     ? Math.max(stats.vps.cpu.percent, stats.vps.memory.percent, primaryDisk?.percent ?? 0)
     : 0;
 
-  const closeMobileNav = () => setMobileNavOpen(false);
-
   return (
-    <main className="app-shell">
-      <button className={`nav-scrim ${mobileNavOpen ? "visible" : ""}`} aria-label="Close navigation" onClick={closeMobileNav} type="button" />
-      <aside className={`sidebar ${mobileNavOpen ? "open" : ""}`}>
-        <div className="brand-row">
-          <a className="brand" href="#overview" onClick={closeMobileNav}>
-            <span className="brand-mark"><Activity size={20} /></span>
-            <span><strong>A3S</strong><small>Infrastructure</small></span>
-          </a>
-          <IconButton className="sidebar-close" label="Close navigation" onClick={closeMobileNav}><X size={18} /></IconButton>
-        </div>
-
-        <nav className="side-nav" aria-label="Dashboard navigation">
-          <p>Workspace</p>
-          <a className="active" href="#overview" onClick={closeMobileNav}><Gauge size={17} /><span>Overview</span></a>
-          <a href="#containers" onClick={closeMobileNav}><Box size={17} /><span>Containers</span>{containers.length ? <b>{containers.length}</b> : null}</a>
-          <p>Telemetry</p>
-          <a href="#resources" onClick={closeMobileNav}><Cpu size={17} /><span>Resources</span></a>
-          <a href="#storage" onClick={closeMobileNav}><HardDrive size={17} /><span>Storage</span></a>
-          <a href="#network" onClick={closeMobileNav}><Network size={17} /><span>Network</span></a>
-        </nav>
-
-        <div className="sidebar-status">
-          <div className="sidebar-status-heading">
-            <span className={`connection-dot ${error ? "error" : stats ? "live" : "pending"}`} />
-            <strong>{error ? "Connection lost" : stats ? "Telemetry live" : "Connecting"}</strong>
-          </div>
-          <p>{stats?.vps.hostname ?? "Waiting for host"}</p>
-          {lastUpdated ? <small>Updated {lastUpdated.toLocaleTimeString()}</small> : null}
-        </div>
-        <div className="sidebar-footer"><ShieldCheck size={14} /> Read-only console</div>
-      </aside>
-
-      <section className="workspace">
-        <header className="topbar">
-          <div className="topbar-location">
-            <IconButton className="menu-button" label="Open navigation" onClick={() => setMobileNavOpen(true)}><Menu size={19} /></IconButton>
-            <div><span>Infrastructure</span><strong>{stats?.vps.hostname ?? "Host overview"}</strong></div>
-          </div>
-          <div className="topbar-actions">
+    <InfrastructureShell
+      activeView="overview"
+      connectionLabel={error ? "Connection lost" : stats ? "Telemetry live" : "Connecting"}
+      connectionTone={error ? "error" : stats ? "live" : "pending"}
+      containerCount={containers.length}
+      hostname={stats?.vps.hostname}
+      lastUpdated={lastUpdated}
+      locationTitle={stats?.vps.hostname ?? "Host overview"}
+      topbarActions={(
+        <>
             <label className="refresh-select">
               <span className="sr-only">Auto refresh interval</span>
               <select onChange={(event) => setRefreshInterval(Number(event.target.value))} value={refreshInterval}>
@@ -220,13 +182,9 @@ export default function Dashboard() {
             <IconButton label="Refresh telemetry" onClick={() => void loadStats()} disabled={refreshing}>
               <RefreshCw className={refreshing ? "spin" : undefined} size={18} />
             </IconButton>
-            <IconLink href="/logout" label="Sign out">
-              <LogOut size={18} />
-            </IconLink>
-          </div>
-        </header>
-
-        <div className="workspace-content">
+        </>
+      )}
+    >
           {error ? (
             <div className={`status-banner ${stats ? "warning" : "error"}`} role="alert">
               <AlertTriangle size={18} />
@@ -336,8 +294,6 @@ export default function Dashboard() {
               <button onClick={() => void loadStats()} type="button"><RefreshCw size={16} />Try again</button>
             </section>
           ) : null}
-        </div>
-      </section>
-    </main>
+    </InfrastructureShell>
   );
 }

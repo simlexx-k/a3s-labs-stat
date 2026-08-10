@@ -1,6 +1,6 @@
-import { ContainerLogsWorkspace } from "@/components/logs/container-logs-workspace";
+import { redirect } from "next/navigation";
 
 export default async function ContainerLogsPage({ params }: PageProps<"/containers/[id]/logs">) {
   const { id } = await params;
-  return <ContainerLogsWorkspace containerId={id} />;
+  redirect(`/logs?container=${encodeURIComponent(id)}`);
 }

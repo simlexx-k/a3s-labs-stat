@@ -125,7 +125,7 @@ function ContainerRows({ container, expanded, onToggle }: { container: Container
         </td>
         <td><span className={container.restart_count > 0 ? "restart-count warning" : "restart-count"}>{container.restart_count}</span></td>
         <td className="container-action-cell">
-          <IconLink href={`/containers/${container.full_id}/logs`} label={`View ${container.name} logs`}>
+          <IconLink href={`/logs?container=${container.full_id}`} label={`View ${container.name} logs`}>
             <ScrollText size={16} />
           </IconLink>
         </td>
@@ -146,7 +146,7 @@ function ContainerRows({ container, expanded, onToggle }: { container: Container
               <div><dt>Block write</dt><dd>{formatBytes(container.stats.block_io.write_bytes)}</dd></div>
               <div className="container-logs-action">
                 <dt>Diagnostics</dt>
-                <dd><Link href={`/containers/${container.full_id}/logs`}><ScrollText size={14} /> Open logs</Link></dd>
+                <dd><Link href={`/logs?container=${container.full_id}`}><ScrollText size={14} /> Open logs</Link></dd>
               </div>
             </dl>
           </td>

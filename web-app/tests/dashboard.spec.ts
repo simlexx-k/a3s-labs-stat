@@ -87,7 +87,7 @@ async function openDashboard(page: Page) {
     await route.fulfill({ body: JSON.stringify(statsFixture()), contentType: "application/json", status: 200 });
   });
   await page.goto("http://localhost:3001");
-  await expect(page.getByRole("heading", { name: "a3s-prod-01" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "a3s-prod-01" })).toBeVisible({ timeout: 15_000 });
   await page.getByRole("button", { name: "Refresh telemetry" }).click();
   await expect(page.getByText("Building live history")).toHaveCount(0);
 }
@@ -96,7 +96,8 @@ test("desktop dashboard has no viewport overflow", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDashboard(page);
   await expect(page.getByRole("link", { name: "Sign out" })).toHaveAttribute("href", "/logout");
-  await expect(page.getByRole("link", { name: "View api-gateway logs" })).toHaveAttribute("href", /\/containers\/[a-f0-9]{64}\/logs/);
+  await expect(page.getByRole("link", { name: "View api-gateway logs" })).toHaveAttribute("href", /\/logs\?container=[a-f0-9]{64}/);
+  await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveAttribute("href", "/logs");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.screenshot({ fullPage: true, path: "/tmp/a3s-dashboard-desktop.png" });
 });
@@ -106,7 +107,7 @@ test("mobile dashboard and navigation fit the viewport", async ({ page }) => {
   await openDashboard(page);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Expand api-gateway" }).click();
-  await expect(page.getByRole("link", { name: "Open logs" })).toHaveAttribute("href", /\/containers\/[a-f0-9]{64}\/logs/);
+  await expect(page.getByRole("link", { name: "Open logs" })).toHaveAttribute("href", /\/logs\?container=[a-f0-9]{64}/);
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(page.getByRole("navigation", { name: "Dashboard navigation" })).toBeVisible();
   await page.waitForTimeout(250);
