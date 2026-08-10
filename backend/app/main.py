@@ -28,6 +28,13 @@ def _cors_headers() -> Headers:
     return Headers(_cors_header_values())
 
 
+def _query_value(query_params, key: str, default=None):
+    value = query_params.get(key, default)
+    if isinstance(value, (list, tuple)):
+        return value[0] if value else default
+    return value
+
+
 @app.options("/api/:path")
 def options(request):
     return Response(status_code=204, headers=_cors_headers(), description="")
@@ -47,23 +54,23 @@ def stats():
 def container_logs(path_params, query_params):
     container_id = path_params["container_id"]
     if not valid_container_id(container_id):
-        return {"error": "Invalid container identifier"}, _cors_header_values(), 400
+        return {"error": "Invalid container identifier"}, 400
 
     try:
-        tail = int(query_params.get("tail", "500"))
-        since_value = query_params.get("since")
+        tail = int(_query_value(query_params, "tail", "500"))
+        since_value = _query_value(query_params, "since")
         since = int(since_value) if since_value else None
     except (TypeError, ValueError):
-        return {"error": "Invalid log query"}, _cors_header_values(), 400
+        return {"error": "Invalid log query"}, 400
 
     if tail < 1 or tail > MAX_LOG_LINES or (since is not None and since < 0):
-        return {"error": "Invalid log query"}, _cors_header_values(), 400
+        return {"error": "Invalid log query"}, 400
 
     try:
         return collect_container_logs(container_id, tail=tail, since=since)
     except ContainerLogsError as exc:
         status = 404 if exc.kind == "not_found" else 503
-        return {"error": str(exc)}, _cors_header_values(), status
+        return {"error": str(exc)}, status
 
 
 if __name__ == "__main__":

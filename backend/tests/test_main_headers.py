@@ -66,16 +66,27 @@ with patch.dict(
 
 
 class ContainerLogRouteTests(unittest.TestCase):
-    def test_tuple_responses_use_plain_header_dicts(self) -> None:
-        body, headers, status = main.container_logs(
+    def test_error_responses_defer_to_global_headers(self) -> None:
+        body, status = main.container_logs(
             {"container_id": "invalid"},
             {},
         )
 
         self.assertEqual(body, {"error": "Invalid container identifier"})
-        self.assertIsInstance(headers, dict)
-        self.assertEqual(headers["Cache-Control"], "no-store")
         self.assertEqual(status, 400)
+
+    def test_list_query_values_are_normalized(self) -> None:
+        with (
+            patch.object(main, "valid_container_id", return_value=True),
+            patch.object(main, "collect_container_logs", return_value={"entries": []}) as collect_logs,
+        ):
+            response = main.container_logs(
+                {"container_id": "a" * 64},
+                {"tail": ["500"], "since": ["1786393701"]},
+            )
+
+        self.assertEqual(response, {"entries": []})
+        collect_logs.assert_called_once_with("a" * 64, tail=500, since=1786393701)
 
 
 if __name__ == "__main__":
