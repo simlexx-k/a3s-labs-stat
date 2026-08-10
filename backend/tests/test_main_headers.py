@@ -66,13 +66,14 @@ with patch.dict(
 
 
 class ContainerLogRouteTests(unittest.TestCase):
-    def test_error_responses_defer_to_global_headers(self) -> None:
-        body, status = main.container_logs(
+    def test_error_responses_use_empty_route_headers(self) -> None:
+        body, headers, status = main.container_logs(
             {"container_id": "invalid"},
             {},
         )
 
         self.assertEqual(body, {"error": "Invalid container identifier"})
+        self.assertEqual(headers, {})
         self.assertEqual(status, 400)
 
     def test_list_query_values_are_normalized(self) -> None:
