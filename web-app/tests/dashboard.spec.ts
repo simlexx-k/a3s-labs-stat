@@ -99,6 +99,15 @@ test("desktop dashboard has no viewport overflow", async ({ page }) => {
   await expect(page.getByRole("link", { name: "View api-gateway logs" })).toHaveAttribute("href", /\/logs\?container=[a-f0-9]{64}/);
   await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveAttribute("href", "/logs");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.setViewportSize({ width: 1440, height: 600 });
+  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  const shellPosition = await page.locator(".sidebar").evaluate((sidebar) => {
+    const bounds = sidebar.getBoundingClientRect();
+    return { bottom: Math.round(bounds.bottom), position: getComputedStyle(sidebar).position, top: Math.round(bounds.top) };
+  });
+  expect(shellPosition).toEqual({ bottom: 600, position: "fixed", top: 0 });
+  await expect(page.getByRole("navigation", { name: "Dashboard navigation" })).toBeVisible();
+  await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({ fullPage: true, path: "/tmp/a3s-dashboard-desktop.png" });
 });
 
