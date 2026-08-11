@@ -53,6 +53,8 @@ test("container details expose structured inspection and guarded actions", async
 
   await page.goto(`http://localhost:3001/containers/${containerId}`);
   await expect(page.getByRole("heading", { name: "api-gateway" })).toBeVisible();
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
+  await expect(page.locator(".workspace-summary")).toBeVisible();
   await expect(page.getByText("Resource history")).toBeVisible();
   await page.getByRole("button", { name: "inspect" }).click();
   await expect(page.getByText("[redacted]")).toBeVisible();
@@ -81,6 +83,8 @@ test("alerts support filtering, acknowledgement, and mobile navigation", async (
 
   await page.goto("http://localhost:3001/alerts");
   await expect(page.getByRole("heading", { name: "Alerts" })).toBeVisible();
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
+  await expect(page.locator(".workspace-summary")).toBeVisible();
   await expect(page.getByText("api-gateway is unhealthy")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Open navigation" }).click();
@@ -96,6 +100,8 @@ test("persistent history renders at desktop and mobile widths", async ({ page })
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto("http://localhost:3001/history");
   await expect(page.getByRole("heading", { name: "Telemetry history" })).toBeVisible();
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
+  await expect(page.locator(".workspace-summary")).toBeVisible();
   await expect(page.getByText("CPU and memory")).toBeVisible();
   await expect(page.getByRole("region", { name: "History summary" })).toContainText("18");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);

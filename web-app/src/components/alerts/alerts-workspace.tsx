@@ -3,6 +3,7 @@
 import { Bell, Check, Download, RefreshCw, Search, ShieldAlert } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
+import { WorkspaceNotice, WorkspacePageHeader, WorkspacePanel, WorkspaceSummary } from "@/components/layout/workspace-ui";
 import { IconButton } from "@/components/ui/icon-button";
 import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import type { AccessSession, AlertsResponse, AlertState, AuditEvent, Stats } from "@/lib/telemetry";
@@ -111,21 +112,23 @@ export function AlertsWorkspace() {
       locationTitle="Alerts and audit"
       topbarActions={<IconButton label="Refresh alerts" onClick={() => void load()} disabled={refreshing}><RefreshCw className={refreshing ? "spin" : undefined} size={18} /></IconButton>}
     >
-      <header className="operations-heading">
-        <div><p className="eyebrow">Operations</p><h1>Alerts</h1><p>Active resource, availability, health, and restart conditions.</p></div>
-        <div className="operations-heading-actions alerts-heading-actions"><span className={`role-badge ${session?.role ?? "viewer"}`}>{session?.role ?? "viewer"}</span><IconButton label="Export visible alerts as CSV" onClick={exportCsv} disabled={!visible.length}><Download size={17} /></IconButton></div>
-      </header>
+      <WorkspacePageHeader
+        actions={<><span className={`role-badge ${session?.role ?? "viewer"}`}>{session?.role ?? "viewer"}</span><IconButton label="Export visible alerts as CSV" onClick={exportCsv} disabled={!visible.length}><Download size={17} /></IconButton></>}
+        description="Active resource, availability, health, and restart conditions."
+        eyebrow="Operations"
+        title="Alerts"
+      />
 
-      {error ? <div className="status-banner error" role="alert"><ShieldAlert size={18} /><div><strong>Alert updates interrupted</strong><span>{error}</span></div><button onClick={() => void load()} type="button">Retry</button></div> : null}
+      {error ? <WorkspaceNotice icon={<ShieldAlert />} onAction={() => void load()} title="Alert updates interrupted" tone="danger">{error}</WorkspaceNotice> : null}
 
-      <section className="operations-summary" aria-label="Alert summary">
-        <div><span>Active</span><strong>{alerts.summary.active}</strong><small>open conditions</small></div>
-        <div><span>Critical</span><strong className="critical-text">{alerts.summary.critical}</strong><small>requires attention</small></div>
-        <div><span>Acknowledged</span><strong>{alerts.summary.acknowledged}</strong><small>active alerts</small></div>
-        <div><span>Resolved</span><strong>{alerts.alerts.filter((alert) => alert.status === "resolved").length}</strong><small>retained states</small></div>
-      </section>
+      <WorkspaceSummary ariaLabel="Alert summary" items={[
+        { detail: "open conditions", label: "Active", value: alerts.summary.active },
+        { detail: "requires attention", label: "Critical", tone: "danger", value: alerts.summary.critical },
+        { detail: "active alerts", label: "Acknowledged", value: alerts.summary.acknowledged },
+        { detail: "retained states", label: "Resolved", value: alerts.alerts.filter((alert) => alert.status === "resolved").length },
+      ]} />
 
-      <section className="panel alerts-panel">
+      <WorkspacePanel className="alerts-panel">
         <div className="table-toolbar alerts-toolbar">
           <label className="search-field"><Search size={16} /><span className="sr-only">Search alerts</span><input onChange={(event) => setSearch(event.target.value)} placeholder="Search alerts" type="search" value={search} /></label>
           <div className="alerts-filter-group">
@@ -144,12 +147,11 @@ export function AlertsWorkspace() {
           </tr>)}
           {!visible.length ? <tr><td className="table-empty" colSpan={6}><Bell size={24} /><strong>{loading ? "Loading alerts" : "No matching alerts"}</strong><span>{loading ? "Reading retained alert states." : "Change the filters or wait for a new condition."}</span></td></tr> : null}
         </tbody></table></div>
-      </section>
+      </WorkspacePanel>
 
-      <section className="panel audit-panel">
-        <div className="panel-heading"><div><p className="eyebrow">Accountability</p><h2>Recent audit activity</h2></div><span className="heading-count">{audit.length} events</span></div>
+      <WorkspacePanel action={<span className="heading-count">{audit.length} events</span>} className="audit-panel" eyebrow="Accountability" title="Recent audit activity">
         <div className="audit-list">{audit.slice(0, 12).map((event) => <div key={event.id}><span className={`audit-outcome ${event.outcome}`} /><div><strong>{event.action.replaceAll(".", " ")}</strong><small>{event.target_name ?? event.target_id ?? "System"}</small></div><div><span>{event.actor}</span><time dateTime={new Date(event.timestamp * 1000).toISOString()}>{timestamp(event.timestamp)}</time></div></div>)}{!audit.length ? <div className="audit-empty">No write operations have been recorded.</div> : null}</div>
-      </section>
+      </WorkspacePanel>
     </InfrastructureShell>
   );
 }

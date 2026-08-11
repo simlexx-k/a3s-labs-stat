@@ -19,6 +19,14 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { ContainersTable } from "@/components/dashboard/containers-table";
 import { Sparkline, TrendChart } from "@/components/dashboard/charts";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
+import {
+  WorkspaceEmptyState,
+  WorkspaceNotice,
+  WorkspacePageHeader,
+  WorkspacePanel,
+  WorkspaceStatus,
+} from "@/components/layout/workspace-ui";
+import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import {
@@ -46,21 +54,6 @@ function Meter({ value, tone = healthTone(value) }: { value: number; tone?: Heal
     <div className="meter" aria-label={`${boundedValue}% utilization`}>
       <span className={tone} style={{ width: `${boundedValue}%` }} />
     </div>
-  );
-}
-
-function Panel({ title, eyebrow, action, children, className = "", id }: { title: string; eyebrow?: string; action?: ReactNode; children: ReactNode; className?: string; id?: string }) {
-  return (
-    <section className={`panel ${className}`} id={id}>
-      <div className="panel-heading">
-        <div>
-          {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-          <h2>{title}</h2>
-        </div>
-        {action ? <div className="panel-action">{action}</div> : null}
-      </div>
-      {children}
-    </section>
   );
 }
 
@@ -187,30 +180,25 @@ export default function Dashboard() {
         </>
       )}
     >
-          {error ? (
-            <div className={`status-banner ${stats ? "warning" : "error"}`} role="alert">
-              <AlertTriangle size={18} />
-              <div><strong>{stats ? "Live updates interrupted" : "Telemetry unavailable"}</strong><span>{error}. {stats ? "Showing the most recent snapshot." : "Check the telemetry service and try again."}</span></div>
-              <button onClick={() => void loadStats()} type="button">Retry</button>
-            </div>
-          ) : null}
+          {error ? <WorkspaceNotice icon={<AlertTriangle />} onAction={() => void loadStats()} title={stats ? "Live updates interrupted" : "Telemetry unavailable"} tone={stats ? "warning" : "danger"}>{error}. {stats ? "Showing the most recent snapshot." : "Check the telemetry service and try again."}</WorkspaceNotice> : null}
 
           {loading ? <LoadingDashboard /> : null}
 
           {stats ? (
             <>
-              <header className="page-heading" id="overview">
-                <div>
-                  <div className="heading-status"><span className={`connection-dot ${error ? "error" : "live"}`} />{error ? "Snapshot" : "Live"}</div>
-                  <h1>{stats.vps.hostname}</h1>
-                  <p>{stats.vps.platform}</p>
-                </div>
-                <div className="host-meta">
+              <div id="overview">
+                <WorkspacePageHeader
+                  actions={<div className="host-meta">
                   <span><Clock3 size={15} />Uptime <strong>{formatUptime(stats.vps.uptime_seconds)}</strong></span>
                   <span><Layers3 size={15} />Kernel <strong>{stats.vps.kernel}</strong></span>
                   <span><ShieldCheck size={15} />Arch <strong>{stats.vps.architecture}</strong></span>
-                </div>
-              </header>
+                  </div>}
+                  description={stats.vps.platform}
+                  eyebrow="Infrastructure overview"
+                  status={<WorkspaceStatus tone={error ? "warning" : "success"}>{error ? "Snapshot" : "Live"}</WorkspaceStatus>}
+                  title={stats.vps.hostname}
+                />
+              </div>
 
               <section className="metric-grid" aria-label="Host metrics">
                 <MetricCard icon={<Cpu size={19} />} label="CPU utilization" value={`${stats.vps.cpu.percent.toFixed(1)}%`} detail={`${stats.vps.cpu.logical_cores ?? 0} logical cores · load ${stats.vps.cpu.load_average["1m"].toFixed(2)}`} percent={stats.vps.cpu.percent} chart={<Sparkline color="#087f8c" data={history} dataKey="cpu" />} />
@@ -220,7 +208,7 @@ export default function Dashboard() {
               </section>
 
               <section className="overview-grid" id="resources">
-                <Panel
+                <WorkspacePanel
                   className="trend-panel"
                   eyebrow="Last two minutes"
                   title="Resource utilization"
@@ -232,9 +220,9 @@ export default function Dashboard() {
                     <span>Current memory <strong>{stats.vps.memory.percent.toFixed(1)}%</strong></span>
                     <span>1m load <strong>{stats.vps.cpu.load_average["1m"].toFixed(2)}</strong></span>
                   </div>
-                </Panel>
+                </WorkspacePanel>
 
-                <Panel className="health-panel" eyebrow="Current snapshot" title="System health" action={<span className={`health-label ${healthTone(overallHealth)}`}><i />{healthTone(overallHealth)}</span>}>
+                <WorkspacePanel className="health-panel" eyebrow="Current snapshot" title="System health" action={<span className={`health-label ${healthTone(overallHealth)}`}><i />{healthTone(overallHealth)}</span>}>
                   <div className="health-list">
                     <div><div><span>CPU pressure</span><strong>{stats.vps.cpu.percent.toFixed(1)}%</strong></div><Meter value={stats.vps.cpu.percent} /></div>
                     <div><div><span>Memory pressure</span><strong>{stats.vps.memory.percent.toFixed(1)}%</strong></div><Meter value={stats.vps.memory.percent} /></div>
@@ -245,13 +233,13 @@ export default function Dashboard() {
                     {stats.vps.cpu.per_cpu_percent.slice(0, 24).map((value, index) => <span key={index} title={`Core ${index + 1}: ${value}%`}><i className={healthTone(value)} style={{ height: `${Math.max(value, 5)}%` }} /></span>)}
                   </div>
                   <div className="core-caption"><span>{stats.vps.cpu.per_cpu_percent.length} logical cores</span><span>Per-core activity</span></div>
-                </Panel>
+                </WorkspacePanel>
               </section>
 
               <ContainersTable containers={containers} />
 
               <section className="system-grid">
-                <Panel eyebrow="Filesystems" title="Storage" id="storage" action={<HardDrive size={18} />}>
+                <WorkspacePanel eyebrow="Filesystems" title="Storage" id="storage" action={<HardDrive size={18} />}>
                   <div className="storage-list">
                     {stats.vps.disks.map((disk) => (
                       <div className="storage-row" key={`${disk.device}-${disk.mountpoint}`}>
@@ -260,17 +248,17 @@ export default function Dashboard() {
                       </div>
                     ))}
                   </div>
-                </Panel>
+                </WorkspacePanel>
 
-                <Panel eyebrow="Live throughput" title="Network" id="network" action={<div className="chart-legend"><span className="cpu"><i />In</span><span className="out"><i />Out</span></div>}>
+                <WorkspacePanel eyebrow="Live throughput" title="Network" id="network" action={<div className="chart-legend"><span className="cpu"><i />In</span><span className="out"><i />Out</span></div>}>
                   <div className="network-totals">
                     <span><ArrowDown size={15} /><small>Inbound</small><strong>{formatRate(latestHistory?.networkIn)}</strong></span>
                     <span><ArrowUp size={15} /><small>Outbound</small><strong>{formatRate(latestHistory?.networkOut)}</strong></span>
                   </div>
                   <TrendChart data={history} mode="network" />
-                </Panel>
+                </WorkspacePanel>
 
-                <Panel eyebrow="Docker runtime" title="Engine" action={<span className={`runtime-state ${stats.docker.available ? "live" : "error"}`}><i />{stats.docker.available ? "Online" : "Offline"}</span>}>
+                <WorkspacePanel eyebrow="Docker runtime" title="Engine" action={<span className={`runtime-state ${stats.docker.available ? "live" : "error"}`}><i />{stats.docker.available ? "Online" : "Offline"}</span>}>
                   <div className="runtime-summary">
                     <div><strong>{formatNumber(stats.docker.summary.containers_total)}</strong><span>Containers</span></div>
                     <div><strong>{formatNumber(stats.docker.summary.images)}</strong><span>Images</span></div>
@@ -282,19 +270,18 @@ export default function Dashboard() {
                     <div><dt>Docker root</dt><dd className="mono">{stats.docker.info.docker_root_dir ?? "N/A"}</dd></div>
                     <div><dt>Operating system</dt><dd>{stats.docker.info.operating_system ?? "N/A"}</dd></div>
                   </dl>
-                </Panel>
+                </WorkspacePanel>
               </section>
             </>
           ) : null}
 
           {!stats && !loading ? (
-            <section className="connection-empty">
-              <div className="empty-icon"><Server size={26} /></div>
-              <p className="eyebrow">Connection required</p>
-              <h1>Telemetry is offline</h1>
-              <p>Live metrics are temporarily unavailable. Check that the telemetry service is running and try again.</p>
-              <button onClick={() => void loadStats()} type="button"><RefreshCw size={16} />Try again</button>
-            </section>
+            <WorkspaceEmptyState
+              action={<Button onClick={() => void loadStats()}><RefreshCw size={16} />Try again</Button>}
+              description="Live metrics are temporarily unavailable. Check that the telemetry service is running and try again."
+              icon={<Server size={22} />}
+              title="Telemetry is offline"
+            />
           ) : null}
     </InfrastructureShell>
   );

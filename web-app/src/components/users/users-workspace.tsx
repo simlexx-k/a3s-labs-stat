@@ -3,6 +3,7 @@
 import { Download, LoaderCircle, Plus, RefreshCw, Search, ShieldAlert, UserRound, UsersRound, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
+import { WorkspaceNotice, WorkspacePageHeader, WorkspacePanel, WorkspaceSummary } from "@/components/layout/workspace-ui";
 import { IconButton } from "@/components/ui/icon-button";
 import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import type { DirectoryUser, UserDirectoryResponse } from "@/lib/user-directory";
@@ -184,26 +185,29 @@ export function UsersWorkspace() {
       activeView="users"
       connectionLabel={error ? "Directory interrupted" : "Directory available"}
       connectionTone={error ? "error" : data ? "live" : "pending"}
+      connectionDetail="Role directory"
       locationTitle="User management"
       topbarActions={<IconButton disabled={loading} label="Refresh users" onClick={() => void load()}><RefreshCw className={loading ? "spin" : undefined} size={18} /></IconButton>}
     >
-      <header className="operations-heading users-heading">
-        <div><p className="eyebrow">Administration</p><h1>User management</h1><p>Workspace authorization, account status, and profile metadata.</p></div>
-        <div className="operations-heading-actions"><button className="secondary-command" disabled={!visibleUsers.length} onClick={exportUsers} type="button"><Download size={15} />Export</button><button className="primary-command" onClick={() => setShowCreate(true)} type="button"><Plus size={15} />Add user</button></div>
-      </header>
+      <WorkspacePageHeader
+        actions={<><button className="secondary-command" disabled={!visibleUsers.length} onClick={exportUsers} type="button"><Download size={15} />Export</button><button className="primary-command" onClick={() => setShowCreate(true)} type="button"><Plus size={15} />Add user</button></>}
+        description="Workspace authorization, account status, and profile metadata."
+        eyebrow="Administration"
+        title="User management"
+      />
 
-      {error ? <div className="status-banner error" role="alert"><ShieldAlert size={18} /><div><strong>User directory issue</strong><span>{error}</span></div><button onClick={() => void load()} type="button">Retry</button></div> : null}
+      {error ? <WorkspaceNotice icon={<ShieldAlert />} onAction={() => void load()} title="User directory issue" tone="danger">{error}</WorkspaceNotice> : null}
       {notice ? <div className="users-notice" aria-live="polite">{notice}</div> : null}
 
-      <section className="operations-summary" aria-label="User summary">
-        <div><span>Total users</span><strong>{data?.summary.total ?? "--"}</strong><small>directory entries</small></div>
-        <div><span>Active</span><strong>{data?.summary.active ?? "--"}</strong><small>workspace access</small></div>
-        <div><span>Administrators</span><strong>{data?.summary.admins ?? "--"}</strong><small>full management</small></div>
-        <div><span>Suspended</span><strong className={data?.summary.suspended ? "critical-text" : undefined}>{data?.summary.suspended ?? "--"}</strong><small>access blocked</small></div>
-      </section>
+      <WorkspaceSummary ariaLabel="User summary" items={[
+        { detail: "directory entries", label: "Total users", value: data?.summary.total ?? "--" },
+        { detail: "workspace access", label: "Active", value: data?.summary.active ?? "--" },
+        { detail: "full management", label: "Administrators", value: data?.summary.admins ?? "--" },
+        { detail: "access blocked", label: "Suspended", tone: data?.summary.suspended ? "danger" : "default", value: data?.summary.suspended ?? "--" },
+      ]} />
 
       <div className="users-directory-grid">
-        <section className="panel users-list-panel">
+        <WorkspacePanel className="users-list-panel">
           <div className="users-toolbar">
             <label className="users-search"><Search aria-hidden="true" size={15} /><span className="sr-only">Search users</span><input onChange={(event) => setSearch(event.target.value)} placeholder="Search users" value={search} /></label>
             <label className="compact-select"><span>Role</span><select aria-label="Role filter" onChange={(event) => setRoleFilter(event.target.value as RoleFilter)} value={roleFilter}><option value="all">All roles</option><option value="viewer">Viewer</option><option value="operator">Operator</option><option value="admin">Admin</option></select></label>
@@ -220,10 +224,9 @@ export function UsersWorkspace() {
             {!loading && !visibleUsers.length ? <div className="users-empty"><UsersRound size={20} />No users match these filters</div> : null}
           </div>
           <footer className="users-list-footer"><span>Showing {visibleUsers.length} of {data?.users.length ?? 0}</span><span>Sign-in policy: Cloudflare Access</span></footer>
-        </section>
+        </WorkspacePanel>
 
-        <section className="panel user-editor-panel">
-          <div className="panel-heading"><div><p className="eyebrow">Selected user</p><h2>{selected?.display_name || selected?.email || "No selection"}</h2></div>{selected ? <span className={`state-label ${selected.status === "active" ? "resolved" : ""}`}>{selected.status}</span> : null}</div>
+        <WorkspacePanel action={selected ? <span className={`state-label ${selected.status === "active" ? "resolved" : ""}`}>{selected.status}</span> : null} className="user-editor-panel" eyebrow="Selected user" title={selected?.display_name || selected?.email || "No selection"}>
           {selected ? <form className="user-editor-form" onSubmit={updateSelected}>
             <div className="user-editor-identity"><span className="user-avatar large">{userInitials(selected)}</span><div><strong>{selected.email}</strong><span>Added {date(selected.created_at)} · {selected.source} source</span></div></div>
             <div className="user-form-grid">
@@ -237,7 +240,7 @@ export function UsersWorkspace() {
             <div className="user-editor-meta"><span>Updated {date(selected.updated_at)}</span><span>by {selected.updated_by || "system"}</span></div>
             <div className="user-editor-actions"><button className="primary-command" disabled={saving} type="submit">{saving ? <LoaderCircle className="spin" size={15} /> : null}{saving ? "Saving" : "Save changes"}</button></div>
           </form> : <div className="users-empty"><UserRound size={20} />Select a user to manage</div>}
-        </section>
+        </WorkspacePanel>
       </div>
 
       {showCreate ? <div className="dialog-scrim" onMouseDown={(event) => { if (event.currentTarget === event.target) setShowCreate(false); }}><section aria-labelledby="create-user-title" aria-modal="true" className="user-create-dialog" role="dialog"><header><div><p className="eyebrow">Workspace access</p><h2 id="create-user-title">Add user</h2></div><IconButton label="Close dialog" onClick={() => setShowCreate(false)}><X size={17} /></IconButton></header><form onSubmit={createUser}>

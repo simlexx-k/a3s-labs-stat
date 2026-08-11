@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
+import { WorkspaceNotice, WorkspacePageHeader, WorkspacePanel, WorkspaceStatus, WorkspaceSummary } from "@/components/layout/workspace-ui";
 import { IconButton } from "@/components/ui/icon-button";
 import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import { formatBytes, type Container, type ContainerLogEntry, type ContainerLogs, type Stats } from "@/lib/telemetry";
@@ -295,7 +296,6 @@ export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialCon
       connectionLabel={error ? "Logs interrupted" : logs ? "Logs connected" : "Connecting"}
       connectionTone={error ? "error" : logs ? "live" : "pending"}
       containerCount={availableContainers.length}
-      contentClassName="logs-content"
       hostname={hostname}
       lastUpdated={logs?.collected_at ? new Date(logs.collected_at) : null}
       locationTitle="Container logs"
@@ -305,16 +305,8 @@ export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialCon
           </IconButton>
       )}
     >
-
-        <header className="logs-page-heading">
-          <div>
-            <div className="logs-heading-line">
-              <h1>{containerName}</h1>
-              {logs ? <span className={`status-badge ${logs.container.status}`}><i />{logs.container.status}</span> : null}
-            </div>
-            <p>{containerImage ?? (containersLoading ? "Loading container inventory" : "Container metadata unavailable")}</p>
-          </div>
-          <div className="logs-heading-actions">
+        <WorkspacePageHeader
+          actions={<>
             <label className="logs-container-picker">
               <span>Container</span>
               <select aria-label="Container" disabled={containersLoading || (!availableContainers.length && !selectedContainerId)} onChange={(event) => selectContainer(event.target.value)} value={selectedContainerId}>
@@ -323,28 +315,24 @@ export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialCon
                 {availableContainers.map((container) => <option key={container.full_id} value={container.full_id}>{container.name} · {container.status}</option>)}
               </select>
             </label>
-            <div className={`logs-live-state ${error ? "error" : paused ? "paused" : "live"}`}>
-              <i />{error ? "Updates interrupted" : paused ? "Polling paused" : "Polling active"}
-            </div>
-          </div>
-        </header>
+            <WorkspaceStatus tone={error ? "danger" : paused ? "warning" : "success"}>{error ? "Updates interrupted" : paused ? "Polling paused" : "Polling active"}</WorkspaceStatus>
+          </>}
+          description={<span className="mono">{containerImage ?? (containersLoading ? "Loading container inventory" : "Container metadata unavailable")}</span>}
+          eyebrow="Workload diagnostics"
+          status={logs ? <WorkspaceStatus tone={logs.container.status === "running" ? "success" : "neutral"}>{logs.container.status}</WorkspaceStatus> : null}
+          title={containerName}
+        />
 
-        {error ? (
-          <div className="status-banner error logs-error" role="alert">
-            <AlertTriangle size={18} />
-            <div><strong>Logs unavailable</strong><span>{error}</span></div>
-            <button onClick={() => void loadLogs()} type="button">Retry</button>
-          </div>
-        ) : null}
+        {error ? <WorkspaceNotice icon={<AlertTriangle />} onAction={() => void loadLogs()} title="Logs unavailable" tone="danger">{error}</WorkspaceNotice> : null}
 
-        <section className="logs-summary" aria-label="Log summary">
-          <div><span>Retrieved</span><strong>{logs?.summary.lines.toLocaleString() ?? "—"}</strong><small>lines</small></div>
-          <div><span>Errors</span><strong>{severityCounts.error.toLocaleString()}</strong><small>detected</small></div>
-          <div><span>Standard error</span><strong>{logs?.summary.stderr_lines.toLocaleString() ?? "—"}</strong><small>lines</small></div>
-          <div><span>Payload</span><strong>{logs ? formatBytes(logs.summary.bytes) : "—"}</strong><small>{logs?.summary.truncated ? "tail limited" : "retrieved"}</small></div>
-        </section>
+        <WorkspaceSummary ariaLabel="Log summary" items={[
+          { detail: "lines", label: "Retrieved", value: logs?.summary.lines.toLocaleString() ?? "—" },
+          { detail: "detected", label: "Errors", tone: severityCounts.error ? "danger" : "default", value: severityCounts.error.toLocaleString() },
+          { detail: "lines", label: "Standard error", value: logs?.summary.stderr_lines.toLocaleString() ?? "—" },
+          { detail: logs?.summary.truncated ? "tail limited" : "retrieved", label: "Payload", value: logs ? formatBytes(logs.summary.bytes) : "—" },
+        ]} />
 
-        <section className="logs-controls" aria-label="Log controls">
+        <WorkspacePanel ariaLabel="Log controls" className="logs-controls">
           <div className="logs-filter-row">
             <label className="logs-search">
               <Search size={16} />
@@ -391,7 +379,7 @@ export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialCon
               {activeFilters.length ? <button onClick={resetFilters} type="button">Reset filters</button> : <small>No active filters</small>}
             </div>
           </div>
-        </section>
+        </WorkspacePanel>
 
         <section className="logs-console" aria-label={`${containerName} logs`}>
           <header>

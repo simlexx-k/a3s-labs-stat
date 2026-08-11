@@ -91,6 +91,7 @@ const navigation: NavigationGroup[] = [
 
 type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
   activeView: ActiveView
+  connectionDetail?: string
   connectionLabel: string
   connectionTone: ConnectionTone
   containerCount: number
@@ -100,6 +101,7 @@ type AppSidebarProps = React.ComponentProps<typeof Sidebar> & {
 
 export function AppSidebar({
   activeView,
+  connectionDetail,
   connectionLabel,
   connectionTone,
   containerCount,
@@ -238,7 +240,7 @@ export function AppSidebar({
           <span className={`connection-dot ${connectionTone}`} />
           <span className="app-sidebar-status-copy">
             <strong>{connectionLabel}</strong>
-            <span>{hostname ?? "Waiting for host"}</span>
+            <span>{connectionDetail ?? hostname ?? "Secure workspace"}</span>
             {lastUpdated ? <small>Updated {lastUpdated.toLocaleTimeString()}</small> : null}
           </span>
         </div>

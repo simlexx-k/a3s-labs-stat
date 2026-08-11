@@ -56,6 +56,8 @@ test("profile management updates personal details and exposes session controls",
 
   await page.goto("http://localhost:3001/account");
   await expect(page.getByRole("heading", { name: "My profile" })).toBeVisible();
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
+  await expect(page.locator(".workspace-panel")).toHaveCount(2);
   await expect(page.getByRole("link", { name: "Profile", exact: true })).toHaveClass(/active/);
   await page.getByLabel("Display name").fill("Simon K.");
   await page.getByLabel("Timezone").selectOption("UTC");
@@ -94,6 +96,8 @@ test("administrators can filter, create, and edit managed users", async ({ page 
 
   await page.goto("http://localhost:3001/users");
   await expect(page.getByRole("heading", { name: "User management" })).toBeVisible();
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
+  await expect(page.locator(".workspace-summary")).toBeVisible();
   await expect(page.getByRole("link", { name: "Users", exact: true })).toHaveClass(/active/);
   await page.getByPlaceholder("Search users").fill("operations");
   await expect(page.getByText("ops@a3slabs.co.ke")).toBeVisible();

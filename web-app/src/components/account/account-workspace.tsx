@@ -3,6 +3,7 @@
 import { Check, Clock3, KeyRound, LoaderCircle, Mail, Save, ShieldCheck, UserRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
+import { WorkspaceNotice, WorkspacePageHeader, WorkspacePanel } from "@/components/layout/workspace-ui";
 import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import type { ProfileResponse } from "@/lib/user-directory";
 import { userInitials } from "@/lib/user-directory";
@@ -85,14 +86,17 @@ export function AccountWorkspace() {
       activeView="profile"
       connectionLabel={error ? "Identity interrupted" : "Identity verified"}
       connectionTone={error ? "error" : data ? "live" : "pending"}
+      connectionDetail="Cloudflare Access"
       locationTitle="My profile"
     >
-      <header className="operations-heading account-heading">
-        <div><p className="eyebrow">Account</p><h1>My profile</h1><p>Identity details, workspace role, and session information.</p></div>
-        {data ? <span className={`role-badge ${data.profile.role}`}>{data.profile.role}</span> : null}
-      </header>
+      <WorkspacePageHeader
+        actions={data ? <span className={`role-badge ${data.profile.role}`}>{data.profile.role}</span> : null}
+        description="Identity details, workspace role, and session information."
+        eyebrow="Account"
+        title="My profile"
+      />
 
-      {error ? <div className="status-banner error" role="alert"><UserRound size={18} /><div><strong>Profile unavailable</strong><span>{error}</span></div><button onClick={() => void load()} type="button">Retry</button></div> : null}
+      {error ? <WorkspaceNotice icon={<UserRound />} onAction={() => void load()} title="Profile unavailable" tone="danger">{error}</WorkspaceNotice> : null}
 
       <section className="account-identity-band" aria-label="Current identity">
         <div className="account-avatar">{data ? userInitials(data.profile) : "--"}</div>
@@ -105,8 +109,7 @@ export function AccountWorkspace() {
       </section>
 
       <div className="account-grid">
-        <section className="panel account-panel">
-          <div className="panel-heading"><div><p className="eyebrow">Profile</p><h2>Personal details</h2></div><UserRound size={17} /></div>
+        <WorkspacePanel action={<UserRound size={17} />} className="account-panel" eyebrow="Profile" title="Personal details">
           {loading ? <div className="account-loading"><LoaderCircle className="spin" size={18} />Loading profile</div> : (
             <form className="account-form" onSubmit={save}>
               <label><span>Display name</span><input autoComplete="name" maxLength={80} onChange={(event) => setDisplayName(event.target.value)} placeholder="Your name" value={displayName} /></label>
@@ -118,10 +121,9 @@ export function AccountWorkspace() {
               </div>
             </form>
           )}
-        </section>
+        </WorkspacePanel>
 
-        <section className="panel account-panel">
-          <div className="panel-heading"><div><p className="eyebrow">Security</p><h2>Identity and access</h2></div><ShieldCheck size={17} /></div>
+        <WorkspacePanel action={<ShieldCheck size={17} />} className="account-panel" eyebrow="Security" title="Identity and access">
           <dl className="account-security-list">
             <div><dt><Mail size={15} />Email</dt><dd>{data?.profile.email || "--"}</dd></div>
             <div><dt><KeyRound size={15} />Provider</dt><dd>{data?.session.identity_provider || "Cloudflare Access"}</dd></div>
@@ -130,7 +132,7 @@ export function AccountWorkspace() {
             <div><dt><Clock3 size={15} />Session expires</dt><dd>{sessionTime(data?.session.expires_at)}</dd></div>
           </dl>
           <div className="account-security-footer"><span>Authentication and one-time codes are managed by Cloudflare Access.</span><a className="secondary-command" href="/logout">End session</a></div>
-        </section>
+        </WorkspacePanel>
       </div>
     </InfrastructureShell>
   );

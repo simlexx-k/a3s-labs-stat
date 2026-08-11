@@ -2,6 +2,7 @@
 
 import { ArrowUpRight, ChevronDown, ChevronRight, Network, ScrollText, Search, ServerCog } from "lucide-react";
 import { useMemo, useState } from "react";
+import { WorkspacePanel } from "@/components/layout/workspace-ui";
 import { IconLink } from "@/components/ui/icon-button";
 import { formatBytes, healthTone, type Container } from "@/lib/telemetry";
 
@@ -24,14 +25,7 @@ export function ContainersTable({ containers }: { containers: Container[] }) {
   }, [containers, filter, query]);
 
   return (
-    <section className="panel workload-panel" id="containers">
-      <div className="panel-heading workload-heading">
-        <div>
-          <p className="eyebrow">Workloads</p>
-          <h2>Containers</h2>
-        </div>
-        <span className="heading-count">{visibleContainers.length} shown</span>
-      </div>
+    <WorkspacePanel action={<span className="heading-count">{visibleContainers.length} shown</span>} className="workload-panel" eyebrow="Workloads" id="containers" title="Containers">
       <div className="table-toolbar">
         <label className="search-field">
           <Search size={16} />
@@ -85,7 +79,7 @@ export function ContainersTable({ containers }: { containers: Container[] }) {
           </tbody>
         </table>
       </div>
-    </section>
+    </WorkspacePanel>
   );
 }
 

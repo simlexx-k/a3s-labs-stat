@@ -93,6 +93,19 @@ request. They are never sent to the browser. Both values must be configured
 together. They may remain empty when the frontend reaches Robyn directly over
 the private Docker Compose network.
 
+## Interface conventions
+
+Every workspace route uses `InfrastructureShell` and the shared primitives in
+`src/components/layout/workspace-ui.tsx`. New screens should compose
+`WorkspacePageHeader`, `WorkspaceSummary`, `WorkspacePanel`, `WorkspaceNotice`,
+and `WorkspaceEmptyState` instead of introducing route-specific page chrome.
+
+The shell owns viewport scrolling and keeps navigation fixed. Controls use the
+shared 36px field sizing, 6px corner radius, focus treatment, and responsive
+breakpoints defined in `src/app/globals.css`. Operational content should remain
+dense, left aligned, keyboard accessible, and usable at 390px without horizontal
+page overflow.
+
 ## Checks
 
 ```bash

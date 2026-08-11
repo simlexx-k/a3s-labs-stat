@@ -67,6 +67,9 @@ async function openLogs(page: Page) {
 test("filters logs and exports the visible subset", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openLogs(page);
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
+  await expect(page.locator(".workspace-summary")).toBeVisible();
+  await expect(page.locator(".workspace-panel")).toBeVisible();
   await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveClass(/active/);
 
   await page.getByPlaceholder("Search messages").fill("database");
@@ -95,11 +98,15 @@ test("filters logs and exports the visible subset", async ({ page }) => {
 test("mobile logs workspace fits the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openLogs(page);
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(page.getByRole("navigation", { name: "Dashboard navigation" })).toBeVisible();
   await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveClass(/active/);
   await page.getByRole("button", { name: "Close navigation" }).last().click();
+  await page.locator("[data-shell-scroll]").evaluate((region) => { region.scrollTop = region.scrollHeight; });
+  await expect(page.getByRole("combobox", { name: "Export" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Export visible logs as text" })).toBeVisible();
   await page.screenshot({ fullPage: true, path: "/tmp/a3s-container-logs-mobile.png" });
 });
 

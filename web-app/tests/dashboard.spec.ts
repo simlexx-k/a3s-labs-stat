@@ -95,6 +95,8 @@ async function openDashboard(page: Page) {
 test("desktop dashboard has no viewport overflow", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDashboard(page);
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
+  await expect(page.locator(".workspace-panel").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Sign out" })).toHaveAttribute("href", "/logout");
   await expect(page.getByRole("link", { name: "View api-gateway logs" })).toHaveAttribute("href", /\/logs\?container=[a-f0-9]{64}/);
   await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveAttribute("href", "/logs");
@@ -121,6 +123,7 @@ test("desktop dashboard has no viewport overflow", async ({ page }) => {
 test("mobile dashboard and navigation fit the viewport", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await openDashboard(page);
+  await expect(page.locator(".workspace-page-header")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Expand api-gateway" }).click();
   await expect(page.getByRole("link", { name: "Open logs" })).toHaveAttribute("href", /\/logs\?container=[a-f0-9]{64}/);

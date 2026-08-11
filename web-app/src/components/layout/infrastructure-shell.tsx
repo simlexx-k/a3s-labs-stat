@@ -20,6 +20,7 @@ type ConnectionTone = "live" | "error" | "pending";
 type InfrastructureShellProps = {
   activeView: ActiveView;
   children: ReactNode;
+  connectionDetail?: string;
   connectionLabel: string;
   connectionTone: ConnectionTone;
   containerCount?: number;
@@ -33,6 +34,7 @@ type InfrastructureShellProps = {
 export function InfrastructureShell({
   activeView,
   children,
+  connectionDetail,
   connectionLabel,
   connectionTone,
   containerCount = 0,
@@ -49,6 +51,7 @@ export function InfrastructureShell({
     >
       <AppSidebar
         activeView={activeView}
+        connectionDetail={connectionDetail}
         connectionLabel={connectionLabel}
         connectionTone={connectionTone}
         containerCount={containerCount}

@@ -4,6 +4,7 @@ import { Activity, Download, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
+import { WorkspaceNotice, WorkspacePageHeader, WorkspacePanel, WorkspaceSummary } from "@/components/layout/workspace-ui";
 import { IconButton } from "@/components/ui/icon-button";
 import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import { formatBytes, type MetricSample, type Stats } from "@/lib/telemetry";
@@ -79,28 +80,29 @@ export function HistoryWorkspace() {
       locationTitle="Telemetry history"
       topbarActions={<IconButton label="Refresh history" onClick={() => void load()} disabled={refreshing}><RefreshCw className={refreshing ? "spin" : undefined} size={18} /></IconButton>}
     >
-      <header className="operations-heading">
-        <div><p className="eyebrow">Observability</p><h1>Telemetry history</h1><p>Persistent host and workload measurements retained by the telemetry service.</p></div>
-        <div className="operations-heading-actions">
+      <WorkspacePageHeader
+        actions={<>
           <div className="segment-control" aria-label="History window" role="group">
             {(Object.keys(windows) as WindowKey[]).map((value) => <button aria-pressed={windowKey === value} key={value} onClick={() => setWindowKey(value)} type="button">{value}</button>)}
           </div>
           <IconButton label="Export history as CSV" onClick={exportCsv} disabled={!samples.length}><Download size={17} /></IconButton>
-        </div>
-      </header>
+        </>}
+        description="Persistent host and workload measurements retained by the telemetry service."
+        eyebrow="Observability"
+        title="Telemetry history"
+      />
 
-      {error ? <div className="status-banner error" role="alert"><Activity size={18} /><div><strong>History unavailable</strong><span>{error}</span></div><button onClick={() => void load()} type="button">Retry</button></div> : null}
+      {error ? <WorkspaceNotice icon={<Activity />} onAction={() => void load()} title="History unavailable" tone="danger">{error}</WorkspaceNotice> : null}
 
-      <section className="operations-summary" aria-label="History summary">
-        <div><span>Samples</span><strong>{samples.length.toLocaleString()}</strong><small>selected window</small></div>
-        <div><span>Peak CPU</span><strong>{peakCpu.toFixed(1)}%</strong><small>host utilization</small></div>
-        <div><span>Peak memory</span><strong>{peakMemory.toFixed(1)}%</strong><small>host utilization</small></div>
-        <div><span>Network totals</span><strong>{formatBytes((latest?.network_rx_bytes ?? 0) + (latest?.network_tx_bytes ?? 0))}</strong><small>latest counters</small></div>
-      </section>
+      <WorkspaceSummary ariaLabel="History summary" items={[
+        { detail: "selected window", label: "Samples", value: samples.length.toLocaleString() },
+        { detail: "host utilization", label: "Peak CPU", value: `${peakCpu.toFixed(1)}%` },
+        { detail: "host utilization", label: "Peak memory", value: `${peakMemory.toFixed(1)}%` },
+        { detail: "latest counters", label: "Network totals", value: formatBytes((latest?.network_rx_bytes ?? 0) + (latest?.network_tx_bytes ?? 0)) },
+      ]} />
 
       <div className="history-grid">
-        <section className="panel history-panel">
-          <div className="panel-heading"><div><p className="eyebrow">Resources</p><h2>CPU and memory</h2></div><span className="heading-count">{windowKey}</span></div>
+        <WorkspacePanel action={<span className="heading-count">{windowKey}</span>} className="history-panel" eyebrow="Resources" title="CPU and memory">
           <div className="history-chart">
             {loading ? <div className="chart-waiting"><span className="pulse-dot" />Loading samples</div> : !chartData.length ? <div className="chart-waiting">Waiting for retained samples</div> : (
               <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 12, right: 20, left: -12, bottom: 0 }}>
@@ -109,9 +111,8 @@ export function HistoryWorkspace() {
               </LineChart></ResponsiveContainer>
             )}
           </div>
-        </section>
-        <section className="panel history-panel">
-          <div className="panel-heading"><div><p className="eyebrow">Capacity</p><h2>Disk and workloads</h2></div><span className="heading-count">retained</span></div>
+        </WorkspacePanel>
+        <WorkspacePanel action={<span className="heading-count">retained</span>} className="history-panel" eyebrow="Capacity" title="Disk and workloads">
           <div className="history-chart">
             {loading ? <div className="chart-waiting"><span className="pulse-dot" />Loading samples</div> : !chartData.length ? <div className="chart-waiting">Waiting for retained samples</div> : (
               <ResponsiveContainer width="100%" height="100%"><LineChart data={chartData} margin={{ top: 12, right: 20, left: -12, bottom: 0 }}>
@@ -120,7 +121,7 @@ export function HistoryWorkspace() {
               </LineChart></ResponsiveContainer>
             )}
           </div>
-        </section>
+        </WorkspacePanel>
       </div>
     </InfrastructureShell>
   );
