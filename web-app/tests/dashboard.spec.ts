@@ -101,7 +101,7 @@ test("desktop dashboard has no viewport overflow", async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1440, height: 600 });
   await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
-  const shellPosition = await page.locator(".sidebar").evaluate((sidebar) => {
+  const shellPosition = await page.locator('[data-slot="sidebar-container"]').evaluate((sidebar) => {
     const bounds = sidebar.getBoundingClientRect();
     return { bottom: Math.round(bounds.bottom), position: getComputedStyle(sidebar).position, top: Math.round(bounds.top) };
   });

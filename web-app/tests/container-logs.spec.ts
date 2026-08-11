@@ -61,13 +61,13 @@ async function openLogs(page: Page) {
   await page.goto(`http://localhost:3001/logs?container=${containerId}`);
   await expect(page.getByRole("heading", { name: "api-gateway" })).toBeVisible();
   await expect(page.getByText("INFO service ready on port 8080")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveClass(/active/);
   await expect(page.getByRole("combobox", { name: "Container" })).toHaveValue(containerId);
 }
 
 test("filters logs and exports the visible subset", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openLogs(page);
+  await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveClass(/active/);
 
   await page.getByPlaceholder("Search messages").fill("database");
   await expect(page.getByText("ERROR database connection failed")).toBeVisible();

@@ -1,11 +1,20 @@
 "use client";
 
-import { Activity, Bell, Box, Cpu, Gauge, HardDrive, History, LogOut, Menu, Network, ScrollText, ShieldCheck, X } from "lucide-react";
+import { LogOut } from "lucide-react";
 import Link from "next/link";
-import { useState, type ReactNode } from "react";
-import { IconButton, IconLink } from "@/components/ui/icon-button";
+import type { CSSProperties, ReactNode } from "react";
+import { AppSidebar, type ActiveView } from "@/components/app-sidebar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 
-type ActiveView = "overview" | "containers" | "logs" | "alerts" | "history" | "resources" | "storage" | "network";
 type ConnectionTone = "live" | "error" | "pending";
 
 type InfrastructureShellProps = {
@@ -21,17 +30,6 @@ type InfrastructureShellProps = {
   topbarActions?: ReactNode;
 };
 
-const navItems: Array<{ href: string; icon: ReactNode; id: ActiveView; label: string }> = [
-  { href: "/", icon: <Gauge size={17} />, id: "overview", label: "Overview" },
-  { href: "/#containers", icon: <Box size={17} />, id: "containers", label: "Containers" },
-  { href: "/logs", icon: <ScrollText size={17} />, id: "logs", label: "Logs" },
-  { href: "/alerts", icon: <Bell size={17} />, id: "alerts", label: "Alerts" },
-  { href: "/history", icon: <History size={17} />, id: "history", label: "History" },
-  { href: "/#resources", icon: <Cpu size={17} />, id: "resources", label: "Resources" },
-  { href: "/#storage", icon: <HardDrive size={17} />, id: "storage", label: "Storage" },
-  { href: "/#network", icon: <Network size={17} />, id: "network", label: "Network" },
-];
-
 export function InfrastructureShell({
   activeView,
   children,
@@ -44,68 +42,47 @@ export function InfrastructureShell({
   locationTitle,
   topbarActions,
 }: InfrastructureShellProps) {
-  const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  const closeMobileNav = () => setMobileNavOpen(false);
-
   return (
-    <main className="app-shell">
-      <button className={`nav-scrim ${mobileNavOpen ? "visible" : ""}`} aria-label="Close navigation" onClick={closeMobileNav} type="button" />
-      <aside className={`sidebar ${mobileNavOpen ? "open" : ""}`}>
-        <div className="brand-row">
-          <Link className="brand" href="/" onClick={closeMobileNav}>
-            <span className="brand-mark"><Activity size={20} /></span>
-            <span><strong>A3S</strong><small>Infrastructure</small></span>
-          </Link>
-          <IconButton className="sidebar-close" label="Close navigation" onClick={closeMobileNav}><X size={18} /></IconButton>
-        </div>
-
-        <nav className="side-nav" aria-label="Dashboard navigation">
-          <p>Workspace</p>
-          {navItems.slice(0, 3).map((item) => (
-            <Link className={activeView === item.id ? "active" : undefined} href={item.href} key={item.id} onClick={closeMobileNav}>
-              {item.icon}<span>{item.label}</span>
-              {item.id === "containers" && containerCount ? <b>{containerCount}</b> : null}
-            </Link>
-          ))}
-          <p>Operations</p>
-          {navItems.slice(3, 5).map((item) => (
-            <Link className={activeView === item.id ? "active" : undefined} href={item.href} key={item.id} onClick={closeMobileNav}>
-              {item.icon}<span>{item.label}</span>
-            </Link>
-          ))}
-          <p>Telemetry</p>
-          {navItems.slice(5).map((item) => (
-            <Link className={activeView === item.id ? "active" : undefined} href={item.href} key={item.id} onClick={closeMobileNav}>
-              {item.icon}<span>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
-
-        <div className="sidebar-status">
-          <div className="sidebar-status-heading">
-            <span className={`connection-dot ${connectionTone}`} />
-            <strong>{connectionLabel}</strong>
+    <SidebarProvider
+      className="bg-[var(--canvas)]"
+      style={{ "--sidebar-width": "15rem" } as CSSProperties}
+    >
+      <AppSidebar
+        activeView={activeView}
+        connectionLabel={connectionLabel}
+        connectionTone={connectionTone}
+        containerCount={containerCount}
+        hostname={hostname}
+        lastUpdated={lastUpdated}
+      />
+      <SidebarInset className="min-w-0 overflow-x-hidden bg-[var(--canvas)]">
+        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] bg-white/95 px-3 backdrop-blur-sm sm:px-5">
+          <div className="flex min-w-0 items-center gap-2">
+            <SidebarTrigger aria-label="Open navigation" className="shrink-0" />
+            <Separator className="h-4" orientation="vertical" />
+            <Breadcrumb className="min-w-0">
+              <BreadcrumbList className="min-w-0 flex-nowrap">
+                <BreadcrumbItem className="hidden sm:inline-flex">
+                  <span>Infrastructure</span>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator className="hidden sm:list-item" />
+                <BreadcrumbItem className="min-w-0">
+                  <BreadcrumbPage className="block max-w-[45vw] truncate font-medium sm:max-w-[50vw]">
+                    {locationTitle}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
           </div>
-          <p>{hostname ?? "Waiting for host"}</p>
-          {lastUpdated ? <small>Updated {lastUpdated.toLocaleTimeString()}</small> : null}
-        </div>
-        <div className="sidebar-footer"><ShieldCheck size={14} /> Access controlled</div>
-      </aside>
-
-      <section className="workspace">
-        <header className="topbar">
-          <div className="topbar-location">
-            <IconButton className="menu-button" label="Open navigation" onClick={() => setMobileNavOpen(true)}><Menu size={19} /></IconButton>
-            <div><span>Infrastructure</span><strong>{locationTitle}</strong></div>
-          </div>
-          <div className="topbar-actions">
+          <div className="flex shrink-0 items-center gap-2">
             {topbarActions}
-            <IconLink href="/logout" label="Sign out"><LogOut size={18} /></IconLink>
+            <Button asChild size="icon" title="Sign out" variant="outline">
+              <Link aria-label="Sign out" href="/logout"><LogOut aria-hidden="true" /></Link>
+            </Button>
           </div>
         </header>
-
         <div className={contentClassName}>{children}</div>
-      </section>
-    </main>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
