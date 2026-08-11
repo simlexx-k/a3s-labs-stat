@@ -10,8 +10,8 @@ export const metadata: Metadata = {
   description: "Live host and container telemetry for A3S infrastructure.",
   applicationName: "A3S Infrastructure Console",
   icons: {
-    icon: [{ url: "/brand/a3s-logo-dark-tile.png", sizes: "1254x1254", type: "image/png" }],
-    shortcut: "/brand/a3s-logo-dark-tile.png",
+    icon: [{ url: "/brand/a3s-orbit-wordmark-transparent.png", sizes: "1536x1024", type: "image/png" }],
+    shortcut: "/brand/a3s-orbit-wordmark-transparent.png",
     apple: [{ url: "/brand/a3s-infrastructure-app-icon.png", sizes: "1254x1254", type: "image/png" }],
   },
   openGraph: {
