@@ -9,5 +9,6 @@ out/
 dist/
 coverage/
 .DS_Store
+*:Zone.Identifier
 
 *.tsbuildinfo

@@ -1,7 +1,6 @@
 "use client"
 
 import {
-  Activity,
   Bell,
   Box,
   Cpu,
@@ -14,6 +13,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react"
+import Image from "next/image"
 import Link from "next/link"
 import * as React from "react"
 
@@ -114,8 +114,15 @@ export function AppSidebar({
             <div className="flex items-center gap-1">
               <SidebarMenuButton asChild className="h-12 flex-1" size="lg" tooltip="A3S Infrastructure">
                 <Link href="/" onClick={closeMobileNavigation}>
-                  <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-                    <Activity aria-hidden="true" />
+                  <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sidebar-primary">
+                    <Image
+                      alt=""
+                      className="size-full object-cover"
+                      height={32}
+                      priority
+                      src="/brand/a3s-logo-dark-tile.png"
+                      width={32}
+                    />
                   </span>
                   <span className="grid min-w-0 flex-1 text-left leading-tight">
                     <strong className="truncate text-sm font-semibold">A3S</strong>
