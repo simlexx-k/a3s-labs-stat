@@ -106,34 +106,34 @@ export function AppSidebar({
   const closeMobileNavigation = () => setOpenMobile(false)
 
   return (
-    <Sidebar collapsible="icon" {...props}>
-      <SidebarHeader className="border-b border-sidebar-border p-2">
+    <Sidebar className="app-sidebar" collapsible="icon" {...props}>
+      <SidebarHeader className="app-sidebar-header">
         <SidebarMenu>
           <SidebarMenuItem>
-            <div className="flex items-center gap-1">
-              <SidebarMenuButton asChild className="h-12 flex-1" size="lg" tooltip="A3S Infrastructure">
+            <div className="app-sidebar-brand-row">
+              <SidebarMenuButton asChild className="app-sidebar-brand" size="lg" tooltip="A3S Infrastructure">
                 {/* Full navigation lets Cloudflare Access reauthenticate an expired session. */}
                 {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
                 <a href="/" onClick={closeMobileNavigation}>
-                  <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sidebar-primary">
+                  <span className="app-sidebar-brand-mark">
                     <Image
                       alt=""
                       className="size-full object-cover"
-                      height={32}
+                      height={36}
                       priority
                       src="/brand/a3s-logo-dark-tile.png"
-                      width={32}
+                      width={36}
                     />
                   </span>
-                  <span className="grid min-w-0 flex-1 text-left leading-tight">
-                    <strong className="truncate text-sm font-semibold">A3S</strong>
-                    <span className="truncate text-xs text-sidebar-foreground/60">Infrastructure</span>
+                  <span className="app-sidebar-brand-copy">
+                    <strong>A3S</strong>
+                    <span>Infrastructure Console</span>
                   </span>
                 </a>
               </SidebarMenuButton>
               <Button
                 aria-label="Close navigation"
-                className="shrink-0 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:hidden"
+                className="app-sidebar-close md:hidden"
                 onClick={closeMobileNavigation}
                 size="icon-sm"
                 variant="ghost"
@@ -145,11 +145,11 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
 
-      <SidebarContent>
-        <nav aria-label="Dashboard navigation" className="flex flex-col py-1">
+      <SidebarContent className="app-sidebar-content">
+        <nav aria-label="Dashboard navigation" className="app-sidebar-navigation">
           {navigation.map((group) => (
-            <SidebarGroup key={group.label}>
-              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+            <SidebarGroup className="app-sidebar-group" key={group.label}>
+              <SidebarGroupLabel className="app-sidebar-group-label">{group.label}</SidebarGroupLabel>
               <SidebarGroupContent>
                 <SidebarMenu>
                   {group.items.map((item) => {
@@ -160,7 +160,7 @@ export function AppSidebar({
                       <SidebarMenuItem key={item.id}>
                         <SidebarMenuButton
                           asChild
-                          className={isActive ? "active" : undefined}
+                          className="app-sidebar-link"
                           isActive={isActive}
                           tooltip={item.label}
                         >
@@ -170,7 +170,7 @@ export function AppSidebar({
                           </a>
                         </SidebarMenuButton>
                         {item.id === "containers" && containerCount > 0 ? (
-                          <SidebarMenuBadge>{containerCount}</SidebarMenuBadge>
+                          <SidebarMenuBadge className="app-sidebar-badge">{containerCount}</SidebarMenuBadge>
                         ) : null}
                       </SidebarMenuItem>
                     )
@@ -182,30 +182,20 @@ export function AppSidebar({
         </nav>
       </SidebarContent>
 
-      <SidebarSeparator />
-      <SidebarFooter>
-        <SidebarMenu>
-          <SidebarMenuItem>
-            <SidebarMenuButton className="h-auto cursor-default py-2 hover:bg-transparent" size="lg" tooltip={connectionLabel}>
-              <span className={`connection-dot ${connectionTone}`} />
-              <span className="grid min-w-0 flex-1 gap-0.5 text-left leading-tight">
-                <strong className="truncate text-xs font-medium">{connectionLabel}</strong>
-                <span className="truncate text-[11px] text-sidebar-foreground/55">{hostname ?? "Waiting for host"}</span>
-                {lastUpdated ? (
-                  <span className="truncate text-[10px] text-sidebar-foreground/45">
-                    Updated {lastUpdated.toLocaleTimeString()}
-                  </span>
-                ) : null}
-              </span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-          <SidebarMenuItem>
-            <SidebarMenuButton className="cursor-default text-sidebar-foreground/55 hover:bg-transparent" tooltip="Access controlled">
-              <ShieldCheck aria-hidden="true" />
-              <span>Access controlled</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        </SidebarMenu>
+      <SidebarSeparator className="app-sidebar-separator" />
+      <SidebarFooter className="app-sidebar-footer">
+        <div className="app-sidebar-status" title={connectionLabel}>
+          <span className={`connection-dot ${connectionTone}`} />
+          <span className="app-sidebar-status-copy">
+            <strong>{connectionLabel}</strong>
+            <span>{hostname ?? "Waiting for host"}</span>
+            {lastUpdated ? <small>Updated {lastUpdated.toLocaleTimeString()}</small> : null}
+          </span>
+        </div>
+        <div className="app-sidebar-access" title="Cloudflare Access protected">
+          <ShieldCheck aria-hidden="true" />
+          <span>Cloudflare Access</span>
+        </div>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

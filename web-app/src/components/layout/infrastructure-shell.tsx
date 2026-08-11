@@ -1,6 +1,7 @@
 "use client";
 
 import { LogOut } from "lucide-react";
+import Image from "next/image";
 import type { CSSProperties, ReactNode } from "react";
 import { AppSidebar, type ActiveView } from "@/components/app-sidebar";
 import {
@@ -43,8 +44,8 @@ export function InfrastructureShell({
 }: InfrastructureShellProps) {
   return (
     <SidebarProvider
-      className="bg-[var(--canvas)]"
-      style={{ "--sidebar-width": "15rem" } as CSSProperties}
+      className="shell-root"
+      style={{ "--sidebar-width": "16.5rem", "--sidebar-width-icon": "4rem" } as CSSProperties}
     >
       <AppSidebar
         activeView={activeView}
@@ -54,33 +55,42 @@ export function InfrastructureShell({
         hostname={hostname}
         lastUpdated={lastUpdated}
       />
-      <SidebarInset className="min-w-0 overflow-x-hidden bg-[var(--canvas)]">
-        <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-3 border-b border-[var(--line)] bg-white/95 px-3 backdrop-blur-sm sm:px-5">
-          <div className="flex min-w-0 items-center gap-2">
-            <SidebarTrigger aria-label="Open navigation" className="shrink-0" />
-            <Separator className="h-4" orientation="vertical" />
-            <Breadcrumb className="min-w-0">
+      <SidebarInset className="shell-main">
+        <header className="shell-header">
+          <div className="shell-header-location">
+            <SidebarTrigger aria-label="Open navigation" className="shell-menu-trigger" size="icon-lg" />
+            <Separator className="shell-header-separator" orientation="vertical" />
+            <div className="shell-mobile-brand" aria-label={`A3S Infrastructure, ${locationTitle}`}>
+              <Image alt="" height={30} priority src="/brand/a3s-logo-dark-tile.png" width={30} />
+              <span>
+                <small>A3S Infrastructure</small>
+                <strong>{locationTitle}</strong>
+              </span>
+            </div>
+            <Breadcrumb className="shell-breadcrumb">
               <BreadcrumbList className="min-w-0 flex-nowrap">
-                <BreadcrumbItem className="hidden sm:inline-flex">
+                <BreadcrumbItem>
                   <span>Infrastructure</span>
                 </BreadcrumbItem>
-                <BreadcrumbSeparator className="hidden sm:list-item" />
+                <BreadcrumbSeparator />
                 <BreadcrumbItem className="min-w-0">
-                  <BreadcrumbPage className="block max-w-[45vw] truncate font-medium sm:max-w-[50vw]">
+                  <BreadcrumbPage className="shell-location-title">
                     {locationTitle}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
               </BreadcrumbList>
             </Breadcrumb>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {topbarActions}
-            <Button asChild size="icon" title="Sign out" variant="outline">
+          <div className="shell-header-actions">
+            {topbarActions ? <div className="shell-page-actions">{topbarActions}</div> : null}
+            <Button asChild className="shell-signout" size="icon-lg" title="Sign out" variant="outline">
               <a aria-label="Sign out" href="/logout"><LogOut aria-hidden="true" /></a>
             </Button>
           </div>
         </header>
-        <div className={contentClassName}>{children}</div>
+        <div className="shell-scroll-region" data-shell-scroll>
+          <div className={contentClassName}>{children}</div>
+        </div>
       </SidebarInset>
     </SidebarProvider>
   );

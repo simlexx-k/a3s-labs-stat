@@ -100,15 +100,22 @@ test("desktop dashboard has no viewport overflow", async ({ page }) => {
   await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveAttribute("href", "/logs");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1440, height: 600 });
-  await page.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
+  await page.locator("[data-shell-scroll]").evaluate((region) => { region.scrollTop = region.scrollHeight; });
   const shellPosition = await page.locator('[data-slot="sidebar-container"]').evaluate((sidebar) => {
     const bounds = sidebar.getBoundingClientRect();
     return { bottom: Math.round(bounds.bottom), position: getComputedStyle(sidebar).position, top: Math.round(bounds.top) };
   });
   expect(shellPosition).toEqual({ bottom: 600, position: "fixed", top: 0 });
+  await expect(page.locator(".shell-header")).toBeInViewport();
   await expect(page.getByRole("navigation", { name: "Dashboard navigation" })).toBeVisible();
-  await page.evaluate(() => window.scrollTo(0, 0));
+  await page.locator("[data-shell-scroll]").evaluate((region) => { region.scrollTop = 0; });
   await page.screenshot({ fullPage: true, path: "/tmp/a3s-dashboard-desktop.png" });
+  await page.getByRole("button", { name: "Open navigation" }).click();
+  await expect(page.locator('[data-slot="sidebar"][data-state="collapsed"]')).toBeVisible();
+  await expect.poll(() => page.locator('[data-slot="sidebar-container"]').evaluate((sidebar) => Math.round(sidebar.getBoundingClientRect().width))).toBe(64);
+  await page.waitForTimeout(250);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ fullPage: true, path: "/tmp/a3s-dashboard-desktop-collapsed.png" });
 });
 
 test("mobile dashboard and navigation fit the viewport", async ({ page }) => {
