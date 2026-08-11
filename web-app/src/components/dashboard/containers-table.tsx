@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowUpRight, ChevronDown, ChevronRight, Network, ScrollText, Search, ServerCog } from "lucide-react";
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { IconLink } from "@/components/ui/icon-button";
 import { formatBytes, healthTone, type Container } from "@/lib/telemetry";
@@ -103,13 +102,13 @@ function ContainerRows({ container, expanded, onToggle }: { container: Container
           </button>
         </td>
         <td>
-          <Link className="container-identity" href={`/containers/${container.full_id}`}>
+          <a className="container-identity" href={`/containers/${container.full_id}`}>
             <span className="container-glyph"><span /></span>
             <span>
               <strong>{container.name}</strong>
               <small title={imageName}>{imageName}</small>
             </span>
-          </Link>
+          </a>
         </td>
         <td><span className={`status-badge ${container.status}`}><i />{container.status}</span></td>
         <td className="usage-cell">
@@ -146,11 +145,11 @@ function ContainerRows({ container, expanded, onToggle }: { container: Container
               <div><dt>Block write</dt><dd>{formatBytes(container.stats.block_io.write_bytes)}</dd></div>
               <div className="container-logs-action">
                 <dt>Diagnostics</dt>
-                <dd><Link href={`/logs?container=${container.full_id}`}><ScrollText size={14} /> Open logs</Link></dd>
+                <dd><a href={`/logs?container=${container.full_id}`}><ScrollText size={14} /> Open logs</a></dd>
               </div>
               <div className="container-logs-action">
                 <dt>Management</dt>
-                <dd><Link href={`/containers/${container.full_id}`}><ArrowUpRight size={14} /> Open details</Link></dd>
+                <dd><a href={`/containers/${container.full_id}`}><ArrowUpRight size={14} /> Open details</a></dd>
               </div>
             </dl>
           </td>

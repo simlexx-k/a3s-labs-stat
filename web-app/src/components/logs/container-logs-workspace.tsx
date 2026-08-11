@@ -13,10 +13,10 @@ import {
   SquareTerminal,
   WrapText,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
 import { IconButton } from "@/components/ui/icon-button";
+import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import { formatBytes, type Container, type ContainerLogEntry, type ContainerLogs, type Stats } from "@/lib/telemetry";
 
 type StreamFilter = "all" | "stdout" | "stderr";
@@ -81,7 +81,6 @@ async function readJson<T>(response: Response, errorMessage: string): Promise<T>
 }
 
 export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialContainerId?: string }) {
-  const router = useRouter();
   const [logs, setLogs] = useState<ContainerLogs | null>(null);
   const [availableContainers, setAvailableContainers] = useState<Container[]>([]);
   const [hostname, setHostname] = useState<string>();
@@ -108,7 +107,7 @@ export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialCon
 
   const loadContainerOptions = useCallback(async () => {
     try {
-      const response = await fetch("/api/stats", { cache: "no-store" });
+      const response = await accessFetch("/api/stats", { cache: "no-store" });
       if (!response.ok) throw new Error("Container inventory unavailable");
       const stats = await readJson<Stats>(response, "Container inventory unavailable");
       setAvailableContainers(stats.docker.containers);
@@ -116,14 +115,17 @@ export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialCon
       if (!initialContainerId && stats.docker.containers.length) {
         const firstContainerId = stats.docker.containers[0].full_id;
         setSelectedContainerId(firstContainerId);
-        router.replace(`/logs?container=${encodeURIComponent(firstContainerId)}`, { scroll: false });
+        const url = new URL(window.location.href);
+        url.searchParams.set("container", firstContainerId);
+        window.history.replaceState(window.history.state, "", url);
       }
-    } catch {
+    } catch (error) {
+      if (isAccessSessionExpired(error)) return;
       setAvailableContainers([]);
     } finally {
       setContainersLoading(false);
     }
-  }, [initialContainerId, router]);
+  }, [initialContainerId]);
 
   useEffect(() => {
     const initial = window.setTimeout(() => void loadContainerOptions(), 0);
@@ -148,13 +150,14 @@ export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialCon
     if (since !== null) query.set("since", String(since));
 
     try {
-      const response = await fetch(`/api/containers/${encodeURIComponent(selectedContainerId)}/logs?${query}`, { cache: "no-store", signal: controller.signal });
+      const response = await accessFetch(`/api/containers/${encodeURIComponent(selectedContainerId)}/logs?${query}`, { cache: "no-store", signal: controller.signal });
       const body = await readJson<ContainerLogs | { error?: string }>(response, "The logs service returned an unexpected response");
       if (!response.ok) throw new Error("error" in body && body.error ? body.error : "Unable to load container logs");
       setLogs(body as ContainerLogs);
       setError(null);
     } catch (err) {
       if (err instanceof Error && err.name === "AbortError") return;
+      if (isAccessSessionExpired(err)) return;
       setError(err instanceof Error ? err.message : "Unable to load container logs");
     } finally {
       if (requestController.current === controller) {
@@ -229,7 +232,9 @@ export function ContainerLogsWorkspace({ initialContainerId = "" }: { initialCon
     setError(null);
     setLoading(true);
     setSessionSince(null);
-    router.replace(`/logs?container=${encodeURIComponent(containerId)}`, { scroll: false });
+    const url = new URL(window.location.href);
+    url.searchParams.set("container", containerId);
+    window.history.replaceState(window.history.state, "", url);
   };
 
   const clearView = () => {

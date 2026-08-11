@@ -20,6 +20,7 @@ import { ContainersTable } from "@/components/dashboard/containers-table";
 import { Sparkline, TrendChart } from "@/components/dashboard/charts";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
 import { IconButton } from "@/components/ui/icon-button";
+import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import {
   formatBytes,
   formatNumber,
@@ -108,7 +109,7 @@ export default function Dashboard() {
 
     try {
       setRefreshing(true);
-      const response = await fetch("/api/stats", { cache: "no-store" });
+      const response = await accessFetch("/api/stats", { cache: "no-store" });
       if (!response.ok) throw new Error("The telemetry service is not responding");
 
       const nextStats = (await response.json()) as Stats;
@@ -135,6 +136,7 @@ export default function Dashboard() {
       ].slice(-24));
       setError(null);
     } catch (err) {
+      if (isAccessSessionExpired(err)) return;
       setError(err instanceof Error ? err.message : "Unable to reach the telemetry service");
     } finally {
       requestInFlight.current = false;

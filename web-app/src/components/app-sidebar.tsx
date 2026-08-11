@@ -14,7 +14,6 @@ import {
   type LucideIcon,
 } from "lucide-react"
 import Image from "next/image"
-import Link from "next/link"
 import * as React from "react"
 
 import { Button } from "@/components/ui/button"
@@ -113,7 +112,9 @@ export function AppSidebar({
           <SidebarMenuItem>
             <div className="flex items-center gap-1">
               <SidebarMenuButton asChild className="h-12 flex-1" size="lg" tooltip="A3S Infrastructure">
-                <Link href="/" onClick={closeMobileNavigation}>
+                {/* Full navigation lets Cloudflare Access reauthenticate an expired session. */}
+                {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+                <a href="/" onClick={closeMobileNavigation}>
                   <span className="flex size-8 shrink-0 items-center justify-center overflow-hidden rounded-md bg-sidebar-primary">
                     <Image
                       alt=""
@@ -128,7 +129,7 @@ export function AppSidebar({
                     <strong className="truncate text-sm font-semibold">A3S</strong>
                     <span className="truncate text-xs text-sidebar-foreground/60">Infrastructure</span>
                   </span>
-                </Link>
+                </a>
               </SidebarMenuButton>
               <Button
                 aria-label="Close navigation"
@@ -163,10 +164,10 @@ export function AppSidebar({
                           isActive={isActive}
                           tooltip={item.label}
                         >
-                          <Link href={item.href} onClick={closeMobileNavigation}>
+                          <a href={item.href} onClick={closeMobileNavigation}>
                             <Icon aria-hidden="true" />
                             <span>{item.label}</span>
-                          </Link>
+                          </a>
                         </SidebarMenuButton>
                         {item.id === "containers" && containerCount > 0 ? (
                           <SidebarMenuBadge>{containerCount}</SidebarMenuBadge>

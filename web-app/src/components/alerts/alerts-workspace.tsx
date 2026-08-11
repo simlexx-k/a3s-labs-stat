@@ -1,10 +1,10 @@
 "use client";
 
 import { Bell, Check, Download, RefreshCw, Search, ShieldAlert } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
 import { IconButton } from "@/components/ui/icon-button";
+import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import type { AccessSession, AlertsResponse, AlertState, AuditEvent, Stats } from "@/lib/telemetry";
 
 type StatusFilter = "active" | "all";
@@ -36,10 +36,10 @@ export function AlertsWorkspace() {
     setRefreshing(true);
     try {
       const [alertsResponse, auditResponse, sessionResponse, statsResponse] = await Promise.all([
-        fetch("/api/alerts?include_resolved=true", { cache: "no-store" }),
-        fetch("/api/audit?limit=50", { cache: "no-store" }),
-        fetch("/api/session", { cache: "no-store" }),
-        fetch("/api/stats", { cache: "no-store" }),
+        accessFetch("/api/alerts?include_resolved=true", { cache: "no-store" }),
+        accessFetch("/api/audit?limit=50", { cache: "no-store" }),
+        accessFetch("/api/session", { cache: "no-store" }),
+        accessFetch("/api/stats", { cache: "no-store" }),
       ]);
       if (!alertsResponse.ok || !auditResponse.ok || !sessionResponse.ok || !statsResponse.ok) throw new Error("Alert service unavailable");
       setAlerts(await alertsResponse.json() as AlertsResponse);
@@ -48,6 +48,7 @@ export function AlertsWorkspace() {
       setStats(await statsResponse.json() as Stats);
       setError(null);
     } catch (reason) {
+      if (isAccessSessionExpired(reason)) return;
       setError(reason instanceof Error ? reason.message : "Alert service unavailable");
     } finally {
       setLoading(false);
@@ -73,11 +74,12 @@ export function AlertsWorkspace() {
   const acknowledge = async (alert: AlertState) => {
     setAcknowledging(alert.alert_key);
     try {
-      const response = await fetch(`/api/alerts/${encodeURIComponent(alert.alert_key)}/acknowledge`, { method: "POST" });
+      const response = await accessFetch(`/api/alerts/${encodeURIComponent(alert.alert_key)}/acknowledge`, { method: "POST" });
       const body = await response.json() as { error?: string };
       if (!response.ok) throw new Error(body.error ?? "Unable to acknowledge alert");
       await load();
     } catch (reason) {
+      if (isAccessSessionExpired(reason)) return;
       setError(reason instanceof Error ? reason.message : "Unable to acknowledge alert");
     } finally {
       setAcknowledging(null);
@@ -134,7 +136,7 @@ export function AlertsWorkspace() {
         <div className="table-wrap"><table className="alerts-table"><thead><tr><th>Condition</th><th>Target</th><th>Value</th><th>Opened</th><th>State</th><th><span className="sr-only">Action</span></th></tr></thead><tbody>
           {visible.map((alert) => <tr key={alert.alert_key}>
             <td><div className="alert-condition"><span className={`severity-mark ${alert.severity}`} /><div><strong>{alert.title}</strong><small>{alert.category} · {alert.severity} · {alert.acknowledged_at ? "acknowledged" : alert.status}</small></div></div></td>
-            <td>{alert.target_id ? <Link className="table-link" href={`/containers/${alert.target_id}`}>{alert.target_name ?? alert.target_id.slice(0, 12)}</Link> : <span className="cell-primary">Host</span>}</td>
+            <td>{alert.target_id ? <a className="table-link" href={`/containers/${alert.target_id}`}>{alert.target_name ?? alert.target_id.slice(0, 12)}</a> : <span className="cell-primary">Host</span>}</td>
             <td><strong className="cell-primary">{alertValue(alert)}</strong>{alert.threshold !== null ? <span className="cell-secondary">threshold {alert.threshold}{alert.unit === "%" ? "%" : ""}</span> : null}</td>
             <td><span className="cell-primary">{timestamp(alert.opened_at)}</span><span className="cell-secondary">Updated {timestamp(alert.updated_at)}</span></td>
             <td>{alert.status === "resolved" ? <span className="state-label resolved"><Check size={13} />Resolved</span> : alert.acknowledged_at ? <span className="state-label acknowledged">Acknowledged</span> : <span className="state-label active">Active</span>}</td>

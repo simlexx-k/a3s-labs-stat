@@ -1,7 +1,6 @@
 "use client";
 
 import { LogOut } from "lucide-react";
-import Link from "next/link";
 import type { CSSProperties, ReactNode } from "react";
 import { AppSidebar, type ActiveView } from "@/components/app-sidebar";
 import {
@@ -77,7 +76,7 @@ export function InfrastructureShell({
           <div className="flex shrink-0 items-center gap-2">
             {topbarActions}
             <Button asChild size="icon" title="Sign out" variant="outline">
-              <Link aria-label="Sign out" href="/logout"><LogOut aria-hidden="true" /></Link>
+              <a aria-label="Sign out" href="/logout"><LogOut aria-hidden="true" /></a>
             </Button>
           </div>
         </header>

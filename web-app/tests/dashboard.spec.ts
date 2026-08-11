@@ -136,3 +136,36 @@ test("offline state does not expose the upstream service", async ({ page }) => {
   await expect(page.locator("body")).not.toContainText("localhost:8080");
   await expect(page.locator("body")).not.toContainText("stats-api");
 });
+
+test("expired Access sessions recover with a top-level navigation", async ({ page }) => {
+  let documentRequests = 0;
+
+  await page.route("http://localhost:3001/", async (route) => {
+    if (route.request().resourceType() !== "document") {
+      await route.continue();
+      return;
+    }
+
+    documentRequests += 1;
+    if (documentRequests === 1) {
+      await route.continue();
+      return;
+    }
+
+    await route.fulfill({
+      body: "<!doctype html><html><body><h1>Access login resumed</h1></body></html>",
+      contentType: "text/html",
+      status: 200,
+    });
+  });
+  await page.route(/\/api\/stats$/, async (route) => {
+    await route.fulfill({
+      headers: { location: "https://a3slabs.cloudflareaccess.com/cdn-cgi/access/login/istatus.a3slabs.co.ke" },
+      status: 302,
+    });
+  });
+
+  await page.goto("http://localhost:3001/", { waitUntil: "domcontentloaded" }).catch(() => undefined);
+  await expect.poll(() => documentRequests).toBe(2);
+  await expect(page.getByRole("heading", { name: "Access login resumed" })).toBeVisible();
+});

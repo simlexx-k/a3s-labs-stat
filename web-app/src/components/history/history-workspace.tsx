@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
 import { IconButton } from "@/components/ui/icon-button";
+import { accessFetch, isAccessSessionExpired } from "@/lib/access-client";
 import { formatBytes, type MetricSample, type Stats } from "@/lib/telemetry";
 
 type WindowKey = "1h" | "6h" | "24h" | "7d";
@@ -23,8 +24,8 @@ export function HistoryWorkspace() {
     try {
       const since = Math.floor(Date.now() / 1000) - windows[windowKey];
       const [historyResponse, statsResponse] = await Promise.all([
-        fetch(`/api/history?since=${since}&limit=10000`, { cache: "no-store" }),
-        fetch("/api/stats", { cache: "no-store" }),
+        accessFetch(`/api/history?since=${since}&limit=10000`, { cache: "no-store" }),
+        accessFetch("/api/stats", { cache: "no-store" }),
       ]);
       if (!historyResponse.ok || !statsResponse.ok) throw new Error("Historical telemetry unavailable");
       const history = await historyResponse.json() as { samples: MetricSample[] };
@@ -32,6 +33,7 @@ export function HistoryWorkspace() {
       setStats(await statsResponse.json() as Stats);
       setError(null);
     } catch (reason) {
+      if (isAccessSessionExpired(reason)) return;
       setError(reason instanceof Error ? reason.message : "Historical telemetry unavailable");
     } finally {
       setLoading(false);

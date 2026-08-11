@@ -1,11 +1,11 @@
 "use client";
 
 import { Activity, Box, CirclePause, CirclePlay, Network, RefreshCw, RotateCw, Search, Square, TriangleAlert } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { InfrastructureShell } from "@/components/layout/infrastructure-shell";
 import { IconButton } from "@/components/ui/icon-button";
+import { accessFetch, isAccessSessionExpired, verifyAccessSession } from "@/lib/access-client";
 import { formatBytes, type AccessSession, type ContainerDetail, type ContainerEvent, type ContainerMetricSample, type Stats } from "@/lib/telemetry";
 
 type Tab = "overview" | "inspect" | "events";
@@ -54,11 +54,11 @@ export function ContainerDetailWorkspace({ containerId }: { containerId: string 
       const since = Math.floor(Date.now() / 1000) - 86_400;
       const eventSince = Math.floor(Date.now() / 1000) - 3_600;
       const [detailResponse, historyResponse, sessionResponse, statsResponse, eventsResponse] = await Promise.all([
-        fetch(`/api/containers/${encodeURIComponent(containerId)}`, { cache: "no-store" }),
-        fetch(`/api/containers/${encodeURIComponent(containerId)}/history?since=${since}`, { cache: "no-store" }),
-        fetch("/api/session", { cache: "no-store" }),
-        fetch("/api/stats", { cache: "no-store" }),
-        fetch(`/api/containers/${encodeURIComponent(containerId)}/events?since=${eventSince}`, { cache: "no-store" }),
+        accessFetch(`/api/containers/${encodeURIComponent(containerId)}`, { cache: "no-store" }),
+        accessFetch(`/api/containers/${encodeURIComponent(containerId)}/history?since=${since}`, { cache: "no-store" }),
+        accessFetch("/api/session", { cache: "no-store" }),
+        accessFetch("/api/stats", { cache: "no-store" }),
+        accessFetch(`/api/containers/${encodeURIComponent(containerId)}/events?since=${eventSince}`, { cache: "no-store" }),
       ]);
       if (!detailResponse.ok || !historyResponse.ok || !sessionResponse.ok || !statsResponse.ok) throw new Error("Container details unavailable");
       setDetail(await detailResponse.json() as ContainerDetail);
@@ -68,6 +68,7 @@ export function ContainerDetailWorkspace({ containerId }: { containerId: string 
       if (eventsResponse.ok) setEvents((await eventsResponse.json() as { events: ContainerEvent[] }).events.toReversed());
       setError(null);
     } catch (reason) {
+      if (isAccessSessionExpired(reason)) return;
       setError(reason instanceof Error ? reason.message : "Container details unavailable");
     } finally {
       setLoading(false);
@@ -89,7 +90,10 @@ export function ContainerDetailWorkspace({ containerId }: { containerId: string 
         setEvents((current) => [event, ...current.filter((item) => item.id !== event.id)].slice(0, 500));
       } catch { /* Ignore malformed event frames. */ }
     };
-    const interrupted = () => setEventsConnected(false);
+    const interrupted = () => {
+      setEventsConnected(false);
+      void verifyAccessSession();
+    };
     source.addEventListener("ready", ready);
     source.addEventListener("container-event", incoming);
     source.addEventListener("telemetry-error", interrupted);
@@ -111,7 +115,7 @@ export function ContainerDetailWorkspace({ containerId }: { containerId: string 
     if (!pendingAction) return;
     setActionRunning(true);
     try {
-      const response = await fetch(`/api/containers/${encodeURIComponent(containerId)}`, {
+      const response = await accessFetch(`/api/containers/${encodeURIComponent(containerId)}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: pendingAction }),
@@ -121,6 +125,7 @@ export function ContainerDetailWorkspace({ containerId }: { containerId: string 
       setPendingAction(null);
       await load();
     } catch (reason) {
+      if (isAccessSessionExpired(reason)) return;
       setError(reason instanceof Error ? reason.message : "Container action failed");
     } finally {
       setActionRunning(false);
@@ -150,7 +155,7 @@ export function ContainerDetailWorkspace({ containerId }: { containerId: string 
 
       <nav className="detail-tabs" aria-label="Container views">
         {(["overview", "inspect", "events"] as Tab[]).map((value) => <button aria-current={tab === value ? "page" : undefined} key={value} onClick={() => setTab(value)} type="button">{value}{value === "events" ? <span className={eventsConnected ? "live-dot" : "idle-dot"} /> : null}</button>)}
-        <Link href={`/logs?container=${containerId}`}>Logs</Link>
+        <a href={`/logs?container=${containerId}`}>Logs</a>
       </nav>
 
       {tab === "overview" ? <>

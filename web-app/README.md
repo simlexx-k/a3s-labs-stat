@@ -55,6 +55,11 @@ Next.js validates its signature, issuer, audience, expiry, and email claim on
 every protected request. This also rejects requests made directly to the Vercel
 deployment URL without passing through Cloudflare Access.
 
+Protected browser requests detect Cloudflare Access login redirects without
+following them as cross-origin fetches. When the Access cookie expires, the
+console performs a top-level navigation to the current page so Cloudflare can
+reauthenticate the user and return them to the requested screen.
+
 The persistent sign-out control links to `/logout`, which redirects to the
 application-domain Cloudflare Access logout endpoint. Cloudflare clears the
 application authorization cookie immediately and revokes the user's Access
