@@ -1095,6 +1095,30 @@ code,
   padding: 15px;
 }
 
+.metric-card-link {
+  color: inherit;
+  text-decoration: none;
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.metric-card-link:hover {
+  border-color: var(--line-strong);
+  box-shadow: 0 6px 18px rgba(15, 18, 22, 0.08);
+  transform: translateY(-1px);
+}
+
+.metric-card-link:active {
+  transform: translateY(0);
+}
+
+.metric-card-arrow {
+  color: var(--muted);
+}
+
+.metric-card-link:hover .metric-card-arrow {
+  color: var(--accent);
+}
+
 .metric-card-top {
   justify-content: space-between;
   gap: 8px;
@@ -1891,6 +1915,73 @@ code,
   font-weight: 660;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.network-interface-list {
+  display: grid;
+}
+
+.network-interface-list > div {
+  display: grid;
+  grid-template-columns: minmax(0, 0.8fr) minmax(180px, 1.2fr);
+  gap: 16px;
+  align-items: center;
+  padding: 13px 15px;
+  border-bottom: 1px solid var(--line);
+}
+
+.network-interface-list > div:last-child {
+  border-bottom: 0;
+}
+
+.network-interface-list > div > div > strong,
+.network-interface-list > div > div > span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-interface-list > div > div > strong {
+  color: var(--ink);
+  font-size: 0.74rem;
+  font-weight: 680;
+}
+
+.network-interface-list > div > div > span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 0.63rem;
+}
+
+.network-interface-list dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.network-interface-list dl > div {
+  min-width: 0;
+}
+
+.network-interface-list dt,
+.network-interface-list dd {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.network-interface-list dt {
+  color: var(--muted);
+  font-size: 0.59rem;
+  text-transform: uppercase;
+}
+
+.network-interface-list dd {
+  margin-top: 3px;
+  color: var(--ink-soft);
+  font-size: 0.68rem;
+  font-weight: 640;
 }
 
 .system-grid .chart-frame,
@@ -4508,6 +4599,11 @@ a:focus-visible {
 
   .logs-active-filters > div {
     justify-content: flex-start;
+  }
+
+  .network-interface-list > div {
+    grid-template-columns: 1fr;
+    gap: 9px;
   }
 
   .logs-viewport {

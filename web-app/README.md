@@ -106,6 +106,11 @@ breakpoints defined in `src/app/globals.css`. Operational content should remain
 dense, left aligned, keyboard accessible, and usable at 390px without horizontal
 page overflow.
 
+Navigation entries own first-class routes. Overview (`/`) is limited to
+cross-system status; container inventory, host resources, storage, and network
+telemetry live at `/containers`, `/resources`, `/storage`, and `/network`.
+Do not add hash-linked feature sections back to Overview.
+
 ## Checks
 
 ```bash

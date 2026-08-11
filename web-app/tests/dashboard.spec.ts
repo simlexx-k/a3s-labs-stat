@@ -96,10 +96,15 @@ test("desktop dashboard has no viewport overflow", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await openDashboard(page);
   await expect(page.locator(".workspace-page-header")).toBeVisible();
-  await expect(page.locator(".workspace-panel").first()).toBeVisible();
   await expect(page.getByRole("link", { name: "Sign out" })).toHaveAttribute("href", "/logout");
-  await expect(page.getByRole("link", { name: "View api-gateway logs" })).toHaveAttribute("href", /\/logs\?container=[a-f0-9]{64}/);
+  await expect(page.getByRole("heading", { name: "Containers", exact: true })).toHaveCount(0);
+  await expect(page.locator('.metric-card-link[href="/resources"]')).toBeVisible();
+  await expect(page.locator('.metric-card-link[href="/containers"]')).toBeVisible();
   await expect(page.getByRole("link", { name: "Logs", exact: true })).toHaveAttribute("href", "/logs");
+  await expect(page.getByRole("link", { name: "Containers", exact: true })).toHaveAttribute("href", "/containers");
+  await expect(page.getByRole("link", { name: "Resources", exact: true })).toHaveAttribute("href", "/resources");
+  await expect(page.getByRole("link", { name: "Storage", exact: true })).toHaveAttribute("href", "/storage");
+  await expect(page.getByRole("link", { name: "Network", exact: true })).toHaveAttribute("href", "/network");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   await page.setViewportSize({ width: 1440, height: 600 });
   await page.locator("[data-shell-scroll]").evaluate((region) => { region.scrollTop = region.scrollHeight; });
@@ -125,8 +130,7 @@ test("mobile dashboard and navigation fit the viewport", async ({ page }) => {
   await openDashboard(page);
   await expect(page.locator(".workspace-page-header")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-  await page.getByRole("button", { name: "Expand api-gateway" }).click();
-  await expect(page.getByRole("link", { name: "Open logs" })).toHaveAttribute("href", /\/logs\?container=[a-f0-9]{64}/);
+  await expect(page.locator('.metric-card-link[href="/containers"]')).toBeVisible();
   await page.getByRole("button", { name: "Open navigation" }).click();
   await expect(page.getByRole("navigation", { name: "Dashboard navigation" })).toBeVisible();
   await page.waitForTimeout(250);
@@ -134,6 +138,37 @@ test("mobile dashboard and navigation fit the viewport", async ({ page }) => {
   await page.getByRole("button", { name: "Close navigation" }).last().click();
   await page.waitForTimeout(250);
   await page.screenshot({ fullPage: true, path: "/tmp/a3s-dashboard-mobile.png" });
+});
+
+test("telemetry domains render as dedicated routes", async ({ page }) => {
+  test.setTimeout(90_000);
+  await page.route(/\/api\/stats$/, async (route) => {
+    await route.fulfill({ body: JSON.stringify(statsFixture()), contentType: "application/json", status: 200 });
+  });
+  await page.setViewportSize({ width: 1440, height: 1000 });
+
+  const routes = [
+    { active: "Containers", content: "Engine configuration", path: "/containers" },
+    { active: "Resources", content: "CPU and memory utilization", path: "/resources" },
+    { active: "Storage", content: "Mounted storage", path: "/storage" },
+    { active: "Network", content: "Network traffic", path: "/network" },
+  ];
+
+  for (const route of routes) {
+    await page.goto(`http://localhost:3001${route.path}`);
+    await expect(page.locator("h1")).toHaveText(route.active);
+    await expect(page.getByRole("navigation", { name: "Dashboard navigation" }).getByRole("link", { name: route.active, exact: true })).toHaveClass(/active/);
+    await expect(page.getByText(route.content, { exact: true })).toBeVisible();
+    if (route.path === "/resources") await expect(page.getByText("Disk capacity", { exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+    await page.screenshot({ fullPage: true, path: `/tmp/a3s-${route.active.toLowerCase()}-desktop.png` });
+  }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("http://localhost:3001/network");
+  await expect(page.locator("h1")).toHaveText("Network");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  await page.screenshot({ fullPage: true, path: "/tmp/a3s-network-mobile.png" });
 });
 
 test("offline state does not expose the upstream service", async ({ page }) => {

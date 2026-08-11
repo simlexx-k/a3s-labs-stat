@@ -25,7 +25,7 @@ export function ContainersTable({ containers }: { containers: Container[] }) {
   }, [containers, filter, query]);
 
   return (
-    <WorkspacePanel action={<span className="heading-count">{visibleContainers.length} shown</span>} className="workload-panel" eyebrow="Workloads" id="containers" title="Containers">
+    <WorkspacePanel action={<span className="heading-count">{visibleContainers.length} shown</span>} className="workload-panel" eyebrow="Workloads" title="Containers">
       <div className="table-toolbar">
         <label className="search-field">
           <Search size={16} />

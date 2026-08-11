@@ -68,7 +68,7 @@ const navigation: NavigationGroup[] = [
     label: "Workspace",
     items: [
       { href: "/", icon: Gauge, id: "overview", label: "Overview" },
-      { href: "/#containers", icon: Box, id: "containers", label: "Containers" },
+      { href: "/containers", icon: Box, id: "containers", label: "Containers" },
       { href: "/logs", icon: ScrollText, id: "logs", label: "Logs" },
     ],
   },
@@ -82,9 +82,9 @@ const navigation: NavigationGroup[] = [
   {
     label: "Telemetry",
     items: [
-      { href: "/#resources", icon: Cpu, id: "resources", label: "Resources" },
-      { href: "/#storage", icon: HardDrive, id: "storage", label: "Storage" },
-      { href: "/#network", icon: Network, id: "network", label: "Network" },
+      { href: "/resources", icon: Cpu, id: "resources", label: "Resources" },
+      { href: "/storage", icon: HardDrive, id: "storage", label: "Storage" },
+      { href: "/network", icon: Network, id: "network", label: "Network" },
     ],
   },
 ]
