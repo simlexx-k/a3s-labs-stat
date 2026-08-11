@@ -38,9 +38,14 @@ export type Container = {
 };
 
 export type AccessSession = {
+  display_name: string;
   email: string;
   role: "viewer" | "operator" | "admin";
+  role_source: "default" | "environment" | "managed";
+  status: "active" | "suspended";
+  title: string;
   expires_at: number | null;
+  issued_at: number | null;
 };
 
 export type ContainerDetail = {

@@ -60,7 +60,9 @@ ISTATUS_OPERATOR_EMAILS=operator1@example.com,operator2@example.com
 ISTATUS_ADMIN_EMAILS=admin@example.com
 ```
 
-Generate the shared write token with `openssl rand -hex 32`. It is passed only to the Next.js and Robyn containers and must never use a `NEXT_PUBLIC_*` name. Users not listed in either role variable remain viewers. Operators and admins can acknowledge alerts and perform the supported container lifecycle actions.
+Generate the shared write token with `openssl rand -hex 32`. It is passed only to the Next.js and Robyn containers and must never use a `NEXT_PUBLIC_*` name. The environment email lists are bootstrap role floors: an administrator can manage additional viewer, operator, and administrator accounts from **Users**, but an environment administrator cannot be demoted or suspended in the app. Operators and admins can acknowledge alerts and perform the supported container lifecycle actions.
+
+Cloudflare Access remains the sign-in authority and must allow an email before it can reach the console. iStatus stores only profile and authorization metadata (display name, title, timezone, role, and status) in the backend SQLite database on the `telemetry-data` volume. It does not store passwords or OTPs. Users can update their own profile under **Profile**; administrators can search, filter, export, create, edit, or suspend directory entries under **Users**. These changes are recorded in the audit log.
 
 History is sampled independently by the backend and stored in the `telemetry-data` Compose volume. Optional root `.env` settings are:
 

@@ -3,13 +3,14 @@
 import {
   Bell,
   Box,
+  CircleUserRound,
   Cpu,
   Gauge,
   HardDrive,
   History,
   Network,
   ScrollText,
-  ShieldCheck,
+  UsersRound,
   X,
   type LucideIcon,
 } from "lucide-react"
@@ -33,6 +34,8 @@ import {
   SidebarSeparator,
   useSidebar,
 } from "@/components/ui/sidebar"
+import { accessFetch, isAccessSessionExpired } from "@/lib/access-client"
+import type { AccessSession } from "@/lib/telemetry"
 
 export type ActiveView =
   | "overview"
@@ -43,6 +46,8 @@ export type ActiveView =
   | "resources"
   | "storage"
   | "network"
+  | "profile"
+  | "users"
 
 type ConnectionTone = "live" | "error" | "pending"
 
@@ -103,7 +108,27 @@ export function AppSidebar({
   ...props
 }: AppSidebarProps) {
   const { setOpenMobile } = useSidebar()
+  const [session, setSession] = React.useState<AccessSession | null>(null)
   const closeMobileNavigation = () => setOpenMobile(false)
+
+  React.useEffect(() => {
+    let active = true
+    void accessFetch("/api/session", { cache: "no-store" })
+      .then(async (response) => {
+        if (response.ok && active) setSession(await response.json() as AccessSession)
+      })
+      .catch((error) => {
+        if (!isAccessSessionExpired(error)) return
+      })
+    return () => { active = false }
+  }, [])
+
+  const accountItems: NavigationItem[] = [
+    { href: "/account", icon: CircleUserRound, id: "profile", label: "Profile" },
+    ...(session?.role === "admin"
+      ? [{ href: "/users", icon: UsersRound, id: "users" as const, label: "Users" }]
+      : []),
+  ]
 
   return (
     <Sidebar className="app-sidebar" collapsible="icon" {...props}>
@@ -179,6 +204,31 @@ export function AppSidebar({
               </SidebarGroupContent>
             </SidebarGroup>
           ))}
+          <SidebarGroup className="app-sidebar-group">
+            <SidebarGroupLabel className="app-sidebar-group-label">Account</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {accountItems.map((item) => {
+                  const Icon = item.icon
+                  return (
+                    <SidebarMenuItem key={item.id}>
+                      <SidebarMenuButton
+                        asChild
+                        className="app-sidebar-link"
+                        isActive={activeView === item.id}
+                        tooltip={item.label}
+                      >
+                        <a href={item.href} onClick={closeMobileNavigation}>
+                          <Icon aria-hidden="true" />
+                          <span>{item.label}</span>
+                        </a>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         </nav>
       </SidebarContent>
 
@@ -192,10 +242,15 @@ export function AppSidebar({
             {lastUpdated ? <small>Updated {lastUpdated.toLocaleTimeString()}</small> : null}
           </span>
         </div>
-        <div className="app-sidebar-access" title="Cloudflare Access protected">
-          <ShieldCheck aria-hidden="true" />
-          <span>Cloudflare Access</span>
-        </div>
+        <a className="app-sidebar-account" href="/account" onClick={closeMobileNavigation} title="Open profile">
+          <span className="app-sidebar-avatar" aria-hidden="true">
+            {(session?.display_name || session?.email || "U").trim().charAt(0).toUpperCase()}
+          </span>
+          <span className="app-sidebar-account-copy">
+            <strong>{session?.display_name || session?.email || "My profile"}</strong>
+            <span>{session ? `${session.role} · Cloudflare Access` : "Cloudflare Access"}</span>
+          </span>
+        </a>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

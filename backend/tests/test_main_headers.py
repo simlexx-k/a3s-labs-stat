@@ -70,12 +70,17 @@ container_operations_module.perform_container_action = lambda *_args, **_kwargs:
 
 telemetry_store_module = types.ModuleType("telemetry_store")
 telemetry_store_module.acknowledge_alert = lambda *_args, **_kwargs: False
+telemetry_store_module.create_user = lambda *_args, **_kwargs: None
 telemetry_store_module.get_alerts = lambda *_args, **_kwargs: {"alerts": []}
 telemetry_store_module.get_audit_events = lambda *_args, **_kwargs: {"events": []}
 telemetry_store_module.get_container_history = lambda *_args, **_kwargs: {"samples": []}
 telemetry_store_module.get_history = lambda *_args, **_kwargs: {"samples": []}
+telemetry_store_module.get_user = lambda *_args, **_kwargs: None
+telemetry_store_module.get_users = lambda *_args, **_kwargs: {"users": [], "summary": {}}
 telemetry_store_module.record_audit = lambda *_args, **_kwargs: None
 telemetry_store_module.record_stats = lambda *_args, **_kwargs: None
+telemetry_store_module.update_user = lambda *_args, **_kwargs: None
+telemetry_store_module.upsert_user_profile = lambda *_args, **_kwargs: None
 
 telemetry_sampler_module = types.ModuleType("telemetry_sampler")
 telemetry_sampler_module.collect_and_record = lambda: {}
@@ -151,6 +156,32 @@ class ContainerLogRouteTests(unittest.TestCase):
         self.assertEqual(response, result)
         perform.assert_called_once_with("a" * 64, "restart")
         self.assertEqual(record.call_args.kwargs["actor"], "ops@example.com")
+
+    def test_user_write_requires_private_token(self) -> None:
+        request = types.SimpleNamespace(json=lambda: {"email": "user@example.com"})
+        with patch.dict(main.os.environ, {"TELEMETRY_WRITE_TOKEN": "expected"}):
+            body, headers, status = main.add_user(request, {"x-istatus-write-token": ["incorrect"]})
+
+        self.assertEqual(body, {"error": "Write access denied"})
+        self.assertEqual(headers, {})
+        self.assertEqual(status, 403)
+
+    def test_profile_write_is_limited_to_actor(self) -> None:
+        request = types.SimpleNamespace(json=lambda: {
+            "display_name": "User",
+            "title": "Engineer",
+            "timezone": "Africa/Nairobi",
+        })
+        with patch.dict(main.os.environ, {"TELEMETRY_WRITE_TOKEN": "expected"}):
+            body, headers, status = main.save_profile(
+                request,
+                {"email": "other@example.com"},
+                {"x-istatus-write-token": ["expected"], "x-istatus-actor": ["user@example.com"]},
+            )
+
+        self.assertEqual(body, {"error": "Profile access denied"})
+        self.assertEqual(headers, {})
+        self.assertEqual(status, 403)
 
 
 if __name__ == "__main__":

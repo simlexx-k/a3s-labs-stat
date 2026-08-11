@@ -1,7 +1,9 @@
 import hmac
 import os
+import re
 import time
 from urllib.parse import unquote
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from robyn import Headers, Request, Response, Robyn
 
@@ -14,11 +16,16 @@ from container_operations import (
 )
 from telemetry_store import (
     acknowledge_alert,
+    create_user,
     get_alerts,
     get_audit_events,
     get_container_history,
     get_history,
+    get_user,
+    get_users,
     record_audit,
+    update_user,
+    upsert_user_profile,
 )
 from telemetry_sampler import collect_and_record, latest_stats, start_telemetry_sampler
 
@@ -82,6 +89,39 @@ def _bounded_query_int(query_params, key: str, default: int, minimum: int, maxim
     return value
 
 
+_EMAIL_PATTERN = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+_USER_ROLES = {"viewer", "operator", "admin"}
+_USER_STATUSES = {"active", "suspended"}
+
+
+def _normalized_email(value) -> str:
+    email = unquote(str(value or "")).strip().lower()
+    return email if len(email) <= 254 and _EMAIL_PATTERN.fullmatch(email) else ""
+
+
+def _text_field(payload: dict, key: str, maximum: int, default: str = "") -> str:
+    value = str(payload.get(key, default)).strip()
+    if len(value) > maximum:
+        raise ValueError
+    return value
+
+
+def _timezone_field(payload: dict, default: str = "UTC") -> str:
+    timezone_name = _text_field(payload, "timezone", 64, default)
+    try:
+        ZoneInfo(timezone_name)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError from exc
+    return timezone_name
+
+
+def _request_json(request: Request) -> dict:
+    payload = request.json()
+    if not isinstance(payload, dict):
+        raise ValueError
+    return payload
+
+
 @app.options("/api/:path")
 def options(request):
     return Response(status_code=204, headers=_cors_headers(), description="")
@@ -125,6 +165,156 @@ def audit(query_params):
     except (TypeError, ValueError):
         return {"error": "Invalid audit query"}, {}, 400
     return get_audit_events(limit=limit)
+
+
+@app.get("/api/users/resolve")
+def resolve_user(query_params):
+    email = _normalized_email(_query_value(query_params, "email"))
+    if not email:
+        return {"error": "Invalid user query"}, {}, 400
+    return {"user": get_user(email)}
+
+
+@app.get("/api/users")
+def users(query_params):
+    try:
+        limit = _bounded_query_int(query_params, "limit", 500, 1, 500)
+    except (TypeError, ValueError):
+        return {"error": "Invalid user query"}, {}, 400
+    return get_users(limit=limit)
+
+
+@app.post("/api/users")
+def add_user(request: Request, headers):
+    if not _write_authorized(headers):
+        return {"error": "Write access denied"}, {}, 403
+    try:
+        payload = _request_json(request)
+        email = _normalized_email(payload.get("email"))
+        if not email:
+            raise ValueError
+        display_name = _text_field(payload, "display_name", 80)
+        title = _text_field(payload, "title", 100)
+        timezone_name = _timezone_field(payload)
+        role = str(payload.get("role", "viewer")).strip().lower()
+        status = str(payload.get("status", "active")).strip().lower()
+        if role not in _USER_ROLES or status not in _USER_STATUSES:
+            raise ValueError
+    except (TypeError, ValueError):
+        return {"error": "Invalid user payload"}, {}, 400
+
+    actor = _header_value(headers, "x-istatus-actor", "unknown")[:254]
+    stored_user = create_user(
+        email=email,
+        display_name=display_name,
+        title=title,
+        timezone_name=timezone_name,
+        role=role,
+        status=status,
+        actor=actor,
+    )
+    if stored_user is None:
+        return {"error": "User already exists"}, {}, 409
+    record_audit(
+        actor=actor,
+        action="user.create",
+        target_id=email,
+        target_name=display_name or email,
+        outcome="success",
+        detail={"role": role, "status": status},
+    )
+    return {"user": stored_user}, {}, 201
+
+
+@app.get("/api/users/:email")
+def user(path_params):
+    email = _normalized_email(path_params["email"])
+    if not email:
+        return {"error": "Invalid user identifier"}, {}, 400
+    stored_user = get_user(email)
+    if stored_user is None:
+        return {"error": "User not found"}, {}, 404
+    return {"user": stored_user}
+
+
+@app.post("/api/users/:email")
+def change_user(request: Request, path_params, headers):
+    if not _write_authorized(headers):
+        return {"error": "Write access denied"}, {}, 403
+    email = _normalized_email(path_params["email"])
+    if not email:
+        return {"error": "Invalid user identifier"}, {}, 400
+    try:
+        payload = _request_json(request)
+        changes = {}
+        if "display_name" in payload:
+            changes["display_name"] = _text_field(payload, "display_name", 80)
+        if "title" in payload:
+            changes["title"] = _text_field(payload, "title", 100)
+        if "timezone" in payload:
+            changes["timezone"] = _timezone_field(payload)
+        if "role" in payload:
+            role = str(payload["role"]).strip().lower()
+            if role not in _USER_ROLES:
+                raise ValueError
+            changes["role"] = role
+        if "status" in payload:
+            status = str(payload["status"]).strip().lower()
+            if status not in _USER_STATUSES:
+                raise ValueError
+            changes["status"] = status
+        if not changes:
+            raise ValueError
+    except (TypeError, ValueError):
+        return {"error": "Invalid user payload"}, {}, 400
+
+    actor = _header_value(headers, "x-istatus-actor", "unknown")[:254]
+    stored_user = update_user(email, changes=changes, actor=actor)
+    if stored_user is None:
+        return {"error": "User not found"}, {}, 404
+    record_audit(
+        actor=actor,
+        action="user.update",
+        target_id=email,
+        target_name=stored_user["display_name"] or email,
+        outcome="success",
+        detail={"fields": sorted(changes)},
+    )
+    return {"user": stored_user}
+
+
+@app.post("/api/users/:email/profile")
+def save_profile(request: Request, path_params, headers):
+    if not _write_authorized(headers):
+        return {"error": "Write access denied"}, {}, 403
+    email = _normalized_email(path_params["email"])
+    actor = _normalized_email(_header_value(headers, "x-istatus-actor"))
+    if not email or actor != email:
+        return {"error": "Profile access denied"}, {}, 403
+    try:
+        payload = _request_json(request)
+        display_name = _text_field(payload, "display_name", 80)
+        title = _text_field(payload, "title", 100)
+        timezone_name = _timezone_field(payload)
+    except (TypeError, ValueError):
+        return {"error": "Invalid profile payload"}, {}, 400
+
+    stored_user = upsert_user_profile(
+        email,
+        display_name=display_name,
+        title=title,
+        timezone_name=timezone_name,
+        actor=actor,
+    )
+    record_audit(
+        actor=actor,
+        action="profile.update",
+        target_id=email,
+        target_name=display_name or email,
+        outcome="success",
+        detail={"fields": ["display_name", "title", "timezone"]},
+    )
+    return {"user": stored_user}
 
 
 @app.post("/api/alerts/:alert_key/acknowledge")

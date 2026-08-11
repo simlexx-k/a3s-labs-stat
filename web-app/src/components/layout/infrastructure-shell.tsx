@@ -1,6 +1,6 @@
 "use client";
 
-import { LogOut } from "lucide-react";
+import { CircleUserRound, LogOut } from "lucide-react";
 import Image from "next/image";
 import type { CSSProperties, ReactNode } from "react";
 import { AppSidebar, type ActiveView } from "@/components/app-sidebar";
@@ -83,6 +83,9 @@ export function InfrastructureShell({
           </div>
           <div className="shell-header-actions">
             {topbarActions ? <div className="shell-page-actions">{topbarActions}</div> : null}
+            <Button asChild className="shell-profile" size="icon-lg" title="Open profile" variant="ghost">
+              <a aria-label="Open profile" href="/account"><CircleUserRound aria-hidden="true" /></a>
+            </Button>
             <Button asChild className="shell-signout" size="icon-lg" title="Sign out" variant="outline">
               <a aria-label="Sign out" href="/logout"><LogOut aria-hidden="true" /></a>
             </Button>

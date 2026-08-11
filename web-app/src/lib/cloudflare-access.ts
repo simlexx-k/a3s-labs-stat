@@ -4,6 +4,7 @@ export type AccessIdentity = {
   email: string;
   subject: string | null;
   expiresAt: number | null;
+  issuedAt: number | null;
 };
 
 export type AccessAuthResult =
@@ -53,7 +54,7 @@ export async function authenticateCloudflareAccess(request: Request): Promise<Ac
   if (config.mode === "development-bypass") {
     return {
       ok: true,
-      identity: { email: "local-development@localhost", subject: null, expiresAt: null },
+      identity: { email: "local-development@localhost", subject: null, expiresAt: null, issuedAt: null },
       developmentBypass: true,
     };
   }
@@ -89,6 +90,7 @@ export async function authenticateCloudflareAccess(request: Request): Promise<Ac
         email,
         subject: typeof payload.sub === "string" ? payload.sub : null,
         expiresAt: typeof payload.exp === "number" ? payload.exp : null,
+        issuedAt: typeof payload.iat === "number" ? payload.iat : null,
       },
       developmentBypass: false,
     };

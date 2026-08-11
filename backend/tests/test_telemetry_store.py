@@ -71,6 +71,50 @@ class TelemetryStoreTests(unittest.TestCase):
         self.assertEqual(acknowledged["acknowledged_by"], "ops@example.com")
         self.assertEqual(audit["events"][0]["action"], "alert.acknowledge")
 
+    def test_manages_users_and_profiles(self) -> None:
+        created = telemetry_store.create_user(
+            email="operator@example.com",
+            display_name="Operator One",
+            title="SRE",
+            timezone_name="Africa/Nairobi",
+            role="operator",
+            status="active",
+            actor="admin@example.com",
+        )
+        self.assertIsNotNone(created)
+        self.assertEqual(created["role"], "operator")
+        self.assertIsNone(
+            telemetry_store.create_user(
+                email="operator@example.com",
+                display_name="Duplicate",
+                title="",
+                timezone_name="UTC",
+                role="viewer",
+                status="active",
+                actor="admin@example.com",
+            )
+        )
+
+        updated = telemetry_store.update_user(
+            "operator@example.com",
+            changes={"role": "admin", "status": "suspended"},
+            actor="admin@example.com",
+        )
+        self.assertEqual(updated["role"], "admin")
+        self.assertEqual(updated["status"], "suspended")
+
+        profile = telemetry_store.upsert_user_profile(
+            "operator@example.com",
+            display_name="Operator Updated",
+            title="Platform Engineer",
+            timezone_name="Africa/Nairobi",
+            actor="operator@example.com",
+        )
+        self.assertEqual(profile["display_name"], "Operator Updated")
+        self.assertEqual(profile["role"], "admin")
+        directory = telemetry_store.get_users()
+        self.assertEqual(directory["summary"], {"total": 1, "active": 0, "suspended": 1, "admins": 1})
+
 
 if __name__ == "__main__":
     unittest.main()

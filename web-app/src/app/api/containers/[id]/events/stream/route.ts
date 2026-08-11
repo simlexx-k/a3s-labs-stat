@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
+import { resolveAccessPrincipal } from "@/lib/access-role";
 import { authenticateCloudflareAccess } from "@/lib/cloudflare-access";
 import { createTelemetryTarget } from "@/lib/telemetry-server";
 
@@ -25,6 +26,8 @@ function delay(milliseconds: number, signal: AbortSignal) {
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const auth = await authenticateCloudflareAccess(request);
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  const principal = await resolveAccessPrincipal(auth, request.nextUrl.origin);
+  if (principal.status === "suspended") return NextResponse.json({ error: "Account suspended" }, { status: 403 });
 
   const { id } = await params;
   if (!containerIdPattern.test(id)) return NextResponse.json({ error: "Invalid events request" }, { status: 400 });

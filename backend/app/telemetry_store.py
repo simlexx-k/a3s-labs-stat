@@ -112,6 +112,21 @@ def _ensure_schema(connection: sqlite3.Connection) -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_audit_events_timestamp
             ON audit_events(timestamp DESC);
+
+        CREATE TABLE IF NOT EXISTS users (
+            email TEXT PRIMARY KEY,
+            display_name TEXT NOT NULL DEFAULT '',
+            title TEXT NOT NULL DEFAULT '',
+            timezone TEXT NOT NULL DEFAULT 'UTC',
+            role TEXT NOT NULL DEFAULT 'viewer',
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            created_by TEXT NOT NULL,
+            updated_by TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_users_role_status
+            ON users(role, status, email);
         """
     )
 
@@ -490,3 +505,139 @@ def get_audit_events(*, limit: int = 100) -> dict[str, Any]:
             (max(1, min(limit, 500)),),
         ).fetchall()
     return {"events": [dict(row) for row in rows]}
+
+
+def _user_from_row(row: sqlite3.Row) -> dict[str, Any]:
+    return {
+        "email": row["email"],
+        "display_name": row["display_name"],
+        "title": row["title"],
+        "timezone": row["timezone"],
+        "role": row["role"],
+        "status": row["status"],
+        "created_at": row["created_at"],
+        "updated_at": row["updated_at"],
+        "created_by": row["created_by"],
+        "updated_by": row["updated_by"],
+    }
+
+
+def get_user(email: str) -> dict[str, Any] | None:
+    with _DB_LOCK, closing(_connect()) as connection:
+        row = connection.execute(
+            """
+            SELECT email, display_name, title, timezone, role, status,
+                   created_at, updated_at, created_by, updated_by
+            FROM users
+            WHERE email = ?
+            """,
+            (email.lower(),),
+        ).fetchone()
+    return _user_from_row(row) if row else None
+
+
+def get_users(*, limit: int = 500) -> dict[str, Any]:
+    with _DB_LOCK, closing(_connect()) as connection:
+        rows = connection.execute(
+            """
+            SELECT email, display_name, title, timezone, role, status,
+                   created_at, updated_at, created_by, updated_by
+            FROM users
+            ORDER BY display_name COLLATE NOCASE, email COLLATE NOCASE
+            LIMIT ?
+            """,
+            (max(1, min(limit, 500)),),
+        ).fetchall()
+    users = [_user_from_row(row) for row in rows]
+    return {
+        "users": users,
+        "summary": {
+            "total": len(users),
+            "active": sum(user["status"] == "active" for user in users),
+            "suspended": sum(user["status"] == "suspended" for user in users),
+            "admins": sum(user["role"] == "admin" for user in users),
+        },
+    }
+
+
+def create_user(
+    *,
+    email: str,
+    display_name: str,
+    title: str,
+    timezone_name: str,
+    role: str,
+    status: str,
+    actor: str,
+) -> dict[str, Any] | None:
+    now = int(time.time())
+    try:
+        with _DB_LOCK, closing(_connect()) as connection:
+            connection.execute(
+                """
+                INSERT INTO users (
+                    email, display_name, title, timezone, role, status,
+                    created_at, updated_at, created_by, updated_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    email.lower(), display_name, title, timezone_name, role, status,
+                    now, now, actor, actor,
+                ),
+            )
+            connection.commit()
+    except sqlite3.IntegrityError:
+        return None
+    return get_user(email)
+
+
+def update_user(email: str, *, changes: dict[str, str], actor: str) -> dict[str, Any] | None:
+    allowed = {"display_name", "title", "timezone", "role", "status"}
+    updates = {key: value for key, value in changes.items() if key in allowed}
+    if not updates:
+        return get_user(email)
+
+    assignments = [f"{key} = ?" for key in updates]
+    assignments.extend(["updated_at = ?", "updated_by = ?"])
+    values: list[Any] = [*updates.values(), int(time.time()), actor, email.lower()]
+    with _DB_LOCK, closing(_connect()) as connection:
+        cursor = connection.execute(
+            f"UPDATE users SET {', '.join(assignments)} WHERE email = ?",
+            values,
+        )
+        connection.commit()
+        if cursor.rowcount == 0:
+            return None
+    return get_user(email)
+
+
+def upsert_user_profile(
+    email: str,
+    *,
+    display_name: str,
+    title: str,
+    timezone_name: str,
+    actor: str,
+) -> dict[str, Any]:
+    now = int(time.time())
+    with _DB_LOCK, closing(_connect()) as connection:
+        connection.execute(
+            """
+            INSERT INTO users (
+                email, display_name, title, timezone, role, status,
+                created_at, updated_at, created_by, updated_by
+            ) VALUES (?, ?, ?, ?, 'viewer', 'active', ?, ?, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET
+                display_name = excluded.display_name,
+                title = excluded.title,
+                timezone = excluded.timezone,
+                updated_at = excluded.updated_at,
+                updated_by = excluded.updated_by
+            """,
+            (email.lower(), display_name, title, timezone_name, now, now, actor, actor),
+        )
+        connection.commit()
+    user = get_user(email)
+    if user is None:
+        raise RuntimeError("User profile could not be stored")
+    return user

@@ -1,7 +1,7 @@
 import "server-only";
 
 import { type NextRequest, NextResponse } from "next/server";
-import { accessRole, roleAllows, type AccessRole } from "@/lib/access-role";
+import { resolveAccessPrincipal, roleAllows, type AccessRole } from "@/lib/access-role";
 import { authenticateCloudflareAccess } from "@/lib/cloudflare-access";
 import { createTelemetryTarget } from "@/lib/telemetry-server";
 
@@ -18,8 +18,11 @@ export async function proxyTelemetryJson(request: NextRequest, pathname: string,
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
 
   const method = options.method ?? "GET";
-  const role = accessRole(auth);
-  if (options.minimumRole && !roleAllows(role, options.minimumRole)) {
+  const principal = await resolveAccessPrincipal(auth, request.nextUrl.origin);
+  if (principal.status === "suspended") {
+    return NextResponse.json({ error: "Account suspended" }, { status: 403 });
+  }
+  if (options.minimumRole && !roleAllows(principal.role, options.minimumRole)) {
     return NextResponse.json({ error: "Operator access required" }, { status: 403 });
   }
 

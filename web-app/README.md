@@ -37,6 +37,15 @@ variable and redeploy.
 Authentication is provided by Cloudflare Access with email One-Time PIN (OTP).
 The application does not store passwords, OTPs, or browser sessions.
 
+The **Profile** screen stores a display name, job title, and timezone in the
+backend SQLite database. The **Users** screen is restricted to administrators
+and manages iStatus roles and account status. Cloudflare Access still decides
+which email addresses may sign in; adding a directory entry does not bypass its
+Allow policy. `ISTATUS_OPERATOR_EMAILS` and `ISTATUS_ADMIN_EMAILS` are bootstrap
+role floors, so environment administrators cannot be demoted or suspended from
+the app. Directory writes use `TELEMETRY_WRITE_TOKEN` and are included in the
+backend audit log.
+
 Create a Cloudflare Access self-hosted application for
 `istatus.a3slabs.co.ke`, select One-Time PIN as its only login method, and add an
 Allow policy containing the specific email addresses that may use the console.
