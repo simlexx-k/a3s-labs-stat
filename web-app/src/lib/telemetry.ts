@@ -20,6 +20,7 @@ export type Container = {
   image: string;
   image_tags: string[];
   status: string;
+  health?: string | null;
   started_at: string;
   restart_count: number;
   ports: Record<string, unknown>;
@@ -34,6 +35,137 @@ export type Container = {
     block_io: { read_bytes: number; write_bytes: number };
     pids: number;
   };
+};
+
+export type AccessSession = {
+  email: string;
+  role: "viewer" | "operator" | "admin";
+  expires_at: number | null;
+};
+
+export type ContainerDetail = {
+  collected_at: string;
+  container: {
+    id: string;
+    full_id: string;
+    name: string;
+    image: string;
+    status: string;
+    created: string | null;
+    started_at: string | null;
+    finished_at: string | null;
+    exit_code: number | null;
+    error: string | null;
+    restart_count: number;
+    platform: string | null;
+    driver: string | null;
+    command: string[];
+    entrypoint: string[];
+    working_dir: string | null;
+    user: string | null;
+    hostname: string | null;
+    restart_policy: Record<string, unknown>;
+    resources: Record<string, string | number | null>;
+    health: null | {
+      status: string;
+      failing_streak: number;
+      recent_checks: Array<{
+        started_at: string;
+        finished_at: string;
+        exit_code: number;
+        output: string;
+      }>;
+    };
+    ports: Array<{ container_port: string; host_ip: string | null; host_port: string | null }>;
+    networks: Array<{
+      name: string;
+      network_id: string | null;
+      endpoint_id: string | null;
+      ip_address: string | null;
+      gateway: string | null;
+      mac_address: string | null;
+      aliases: string[];
+    }>;
+    mounts: Array<{
+      type: string;
+      name: string | null;
+      source: string;
+      destination: string;
+      driver: string | null;
+      mode: string;
+      rw: boolean;
+      propagation: string;
+    }>;
+    labels: Record<string, string>;
+    environment: Array<{ key: string; value: string }>;
+  };
+};
+
+export type ContainerEvent = {
+  id: string;
+  timestamp: number;
+  time_nano: number | null;
+  action: string;
+  container_id: string;
+  container_name: string;
+  image: string | null;
+  attributes: Record<string, string>;
+};
+
+export type MetricSample = {
+  timestamp: number;
+  collected_at: string;
+  cpu_percent: number;
+  memory_percent: number;
+  disk_percent: number;
+  network_rx_bytes: number;
+  network_tx_bytes: number;
+  containers_running: number;
+  containers_total: number;
+};
+
+export type ContainerMetricSample = {
+  timestamp: number;
+  name: string;
+  status: string;
+  health: string | null;
+  cpu_percent: number;
+  memory_percent: number;
+  restart_count: number;
+};
+
+export type AlertState = {
+  alert_key: string;
+  title: string;
+  category: string;
+  severity: "warning" | "critical";
+  status: "active" | "resolved";
+  value: number | null;
+  threshold: number | null;
+  unit: string | null;
+  target_id: string | null;
+  target_name: string | null;
+  opened_at: number | null;
+  updated_at: number;
+  resolved_at: number | null;
+  acknowledged_at: number | null;
+  acknowledged_by: string | null;
+};
+
+export type AlertsResponse = {
+  summary: { active: number; critical: number; acknowledged: number };
+  alerts: AlertState[];
+};
+
+export type AuditEvent = {
+  id: number;
+  timestamp: number;
+  actor: string;
+  action: string;
+  target_id: string | null;
+  target_name: string | null;
+  outcome: string;
+  detail: string | null;
 };
 
 export type ContainerLogEntry = {

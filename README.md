@@ -8,6 +8,9 @@ A VPS, Docker, and container stats dashboard with a Robyn backend and a Next.js 
 - Docker daemon status, version, image/container counts, and running container stats.
 - Per-container CPU, memory, network, block I/O, status, image, ports, and labels.
 - Per-container stdout/stderr logs with search, stream/severity/time filters, bounded polling, follow/wrap controls, and text, JSON, or CSV export.
+- Persistent host and container history backed by SQLite with configurable retention and CSV export.
+- Resource, availability, health, and restart alerts with acknowledgement and an audit trail.
+- Redacted container inspection, live Docker events, and role-gated start, stop, restart, pause, and resume actions.
 - Responsive dashboard with auto-refresh and API health state.
 
 ## Local Development
@@ -43,15 +46,31 @@ The web app runs on `http://localhost:3000`. Browsers request same-origin teleme
 
 Container logs are available from the shared Logs navigation item or any workload row. The `/logs` screen provides container selection within the same application shell as the dashboard. The browser requests the authenticated same-origin `/api/containers/:id/logs` route, and the Next.js server proxies it to the backend. Each request is limited to 5,000 lines and log responses are never cached. Exports are generated locally from the currently visible filtered rows.
 
-The backend container mounts `/var/run/docker.sock` read-only so it can inspect Docker. Treat access to the Docker socket as privileged and only run this dashboard where trusted users can access it. Port `8080` is bound to VPS loopback so it is available to `cloudflared` without being published on the VPS public interfaces.
+The backend container mounts `/var/run/docker.sock` so it can inspect and operate Docker containers. The `:ro` bind-mount flag prevents changing the socket file itself; it does not make Docker Engine API calls read-only. Treat this access as root-equivalent and allow lifecycle operations only for trusted identities. Port `8080` is bound to VPS loopback and is not published on the VPS public interfaces.
 
-Production authentication requires these values in the Compose `.env` file:
+On the VPS, create `.env` in the repository root. Production authentication and write controls use:
 
 ```bash
 CF_ACCESS_TEAM_DOMAIN=https://your-team.cloudflareaccess.com
 CF_ACCESS_AUD=your-dashboard-application-audience
 CF_ACCESS_CLIENT_ID=your-backend-service-token-client-id
 CF_ACCESS_CLIENT_SECRET=your-backend-service-token-secret
+TELEMETRY_WRITE_TOKEN=generate-a-long-random-value
+ISTATUS_OPERATOR_EMAILS=operator1@example.com,operator2@example.com
+ISTATUS_ADMIN_EMAILS=admin@example.com
+```
+
+Generate the shared write token with `openssl rand -hex 32`. It is passed only to the Next.js and Robyn containers and must never use a `NEXT_PUBLIC_*` name. Users not listed in either role variable remain viewers. Operators and admins can acknowledge alerts and perform the supported container lifecycle actions.
+
+History is sampled independently by the backend and stored in the `telemetry-data` Compose volume. Optional root `.env` settings are:
+
+```bash
+TELEMETRY_RETENTION_DAYS=30
+TELEMETRY_SAMPLE_INTERVAL_SECONDS=15
+ALERT_CPU_PERCENT=85
+ALERT_MEMORY_PERCENT=85
+ALERT_DISK_PERCENT=90
+ALERT_RESTART_COUNT=3
 ```
 
 ## GitHub, Vercel, and Cloudflare Tunnel Deployment
@@ -109,6 +128,9 @@ CF_ACCESS_TEAM_DOMAIN=https://your-team.cloudflareaccess.com
 CF_ACCESS_AUD=your-dashboard-application-audience
 CF_ACCESS_CLIENT_ID=your-backend-service-token-client-id
 CF_ACCESS_CLIENT_SECRET=your-backend-service-token-secret
+TELEMETRY_WRITE_TOKEN=the-same-value-configured-on-the-backend
+ISTATUS_OPERATOR_EMAILS=operator1@example.com,operator2@example.com
+ISTATUS_ADMIN_EMAILS=admin@example.com
 ```
 
 These variables are read only by the Next.js server and are not included in browser bundles. After changing them, redeploy the web app.

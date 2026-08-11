@@ -6,10 +6,19 @@ services:
       ROBYN_HOST: 0.0.0.0
       ROBYN_PORT: 8080
       CORS_ORIGIN: https://istatus.a3slabs.co.ke
+      TELEMETRY_DB_PATH: /data/telemetry.db
+      TELEMETRY_RETENTION_DAYS: ${TELEMETRY_RETENTION_DAYS:-30}
+      TELEMETRY_SAMPLE_INTERVAL_SECONDS: ${TELEMETRY_SAMPLE_INTERVAL_SECONDS:-15}
+      TELEMETRY_WRITE_TOKEN: ${TELEMETRY_WRITE_TOKEN:-}
+      ALERT_CPU_PERCENT: ${ALERT_CPU_PERCENT:-85}
+      ALERT_MEMORY_PERCENT: ${ALERT_MEMORY_PERCENT:-85}
+      ALERT_DISK_PERCENT: ${ALERT_DISK_PERCENT:-90}
+      ALERT_RESTART_COUNT: ${ALERT_RESTART_COUNT:-3}
     ports:
       - "127.0.0.1:8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - telemetry-data:/data
     restart: unless-stopped
 
   frontend:
@@ -21,6 +30,9 @@ services:
       CF_ACCESS_AUD: ${CF_ACCESS_AUD:-}
       CF_ACCESS_CLIENT_ID: ${CF_ACCESS_CLIENT_ID:-}
       CF_ACCESS_CLIENT_SECRET: ${CF_ACCESS_CLIENT_SECRET:-}
+      TELEMETRY_WRITE_TOKEN: ${TELEMETRY_WRITE_TOKEN:-}
+      ISTATUS_OPERATOR_EMAILS: ${ISTATUS_OPERATOR_EMAILS:-}
+      ISTATUS_ADMIN_EMAILS: ${ISTATUS_ADMIN_EMAILS:-}
     ports:
       - "3000:3000"
     depends_on:
@@ -37,3 +49,6 @@ services:
     restart: unless-stopped
     profiles:
       - tunnel
+
+volumes:
+  telemetry-data:

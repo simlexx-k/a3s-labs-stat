@@ -1,11 +1,11 @@
 "use client";
 
-import { Activity, Box, Cpu, Gauge, HardDrive, LogOut, Menu, Network, ScrollText, ShieldCheck, X } from "lucide-react";
+import { Activity, Bell, Box, Cpu, Gauge, HardDrive, History, LogOut, Menu, Network, ScrollText, ShieldCheck, X } from "lucide-react";
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { IconButton, IconLink } from "@/components/ui/icon-button";
 
-type ActiveView = "overview" | "containers" | "logs" | "resources" | "storage" | "network";
+type ActiveView = "overview" | "containers" | "logs" | "alerts" | "history" | "resources" | "storage" | "network";
 type ConnectionTone = "live" | "error" | "pending";
 
 type InfrastructureShellProps = {
@@ -25,6 +25,8 @@ const navItems: Array<{ href: string; icon: ReactNode; id: ActiveView; label: st
   { href: "/", icon: <Gauge size={17} />, id: "overview", label: "Overview" },
   { href: "/#containers", icon: <Box size={17} />, id: "containers", label: "Containers" },
   { href: "/logs", icon: <ScrollText size={17} />, id: "logs", label: "Logs" },
+  { href: "/alerts", icon: <Bell size={17} />, id: "alerts", label: "Alerts" },
+  { href: "/history", icon: <History size={17} />, id: "history", label: "History" },
   { href: "/#resources", icon: <Cpu size={17} />, id: "resources", label: "Resources" },
   { href: "/#storage", icon: <HardDrive size={17} />, id: "storage", label: "Storage" },
   { href: "/#network", icon: <Network size={17} />, id: "network", label: "Network" },
@@ -65,8 +67,14 @@ export function InfrastructureShell({
               {item.id === "containers" && containerCount ? <b>{containerCount}</b> : null}
             </Link>
           ))}
+          <p>Operations</p>
+          {navItems.slice(3, 5).map((item) => (
+            <Link className={activeView === item.id ? "active" : undefined} href={item.href} key={item.id} onClick={closeMobileNav}>
+              {item.icon}<span>{item.label}</span>
+            </Link>
+          ))}
           <p>Telemetry</p>
-          {navItems.slice(3).map((item) => (
+          {navItems.slice(5).map((item) => (
             <Link className={activeView === item.id ? "active" : undefined} href={item.href} key={item.id} onClick={closeMobileNav}>
               {item.icon}<span>{item.label}</span>
             </Link>
@@ -81,7 +89,7 @@ export function InfrastructureShell({
           <p>{hostname ?? "Waiting for host"}</p>
           {lastUpdated ? <small>Updated {lastUpdated.toLocaleTimeString()}</small> : null}
         </div>
-        <div className="sidebar-footer"><ShieldCheck size={14} /> Read-only console</div>
+        <div className="sidebar-footer"><ShieldCheck size={14} /> Access controlled</div>
       </aside>
 
       <section className="workspace">

@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronDown, ChevronRight, Network, ScrollText, Search, ServerCog } from "lucide-react";
+import { ArrowUpRight, ChevronDown, ChevronRight, Network, ScrollText, Search, ServerCog } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { IconLink } from "@/components/ui/icon-button";
@@ -103,13 +103,13 @@ function ContainerRows({ container, expanded, onToggle }: { container: Container
           </button>
         </td>
         <td>
-          <button className="container-identity" onClick={onToggle} type="button">
+          <Link className="container-identity" href={`/containers/${container.full_id}`}>
             <span className="container-glyph"><span /></span>
             <span>
               <strong>{container.name}</strong>
               <small title={imageName}>{imageName}</small>
             </span>
-          </button>
+          </Link>
         </td>
         <td><span className={`status-badge ${container.status}`}><i />{container.status}</span></td>
         <td className="usage-cell">
@@ -147,6 +147,10 @@ function ContainerRows({ container, expanded, onToggle }: { container: Container
               <div className="container-logs-action">
                 <dt>Diagnostics</dt>
                 <dd><Link href={`/logs?container=${container.full_id}`}><ScrollText size={14} /> Open logs</Link></dd>
+              </div>
+              <div className="container-logs-action">
+                <dt>Management</dt>
+                <dd><Link href={`/containers/${container.full_id}`}><ArrowUpRight size={14} /> Open details</Link></dd>
               </div>
             </dl>
           </td>

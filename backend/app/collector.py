@@ -169,6 +169,7 @@ def _format_container(container: Any) -> dict[str, Any]:
     state = attrs.get("State", {})
     if not isinstance(state, dict):
         state = {}
+    health_state = state.get("Health") if isinstance(state.get("Health"), dict) else {}
     config = attrs.get("Config", {})
     host_config = attrs.get("HostConfig", {})
     network_settings = attrs.get("NetworkSettings", {})
@@ -195,6 +196,7 @@ def _format_container(container: Any) -> dict[str, Any]:
         "image": image_name,
         "image_tags": [image_name] if image_name != "unknown" else [],
         "status": status,
+        "health": health_state.get("Status"),
         "created": attrs.get("Created"),
         "started_at": state.get("StartedAt"),
         "finished_at": state.get("FinishedAt"),

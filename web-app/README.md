@@ -69,6 +69,9 @@ a dedicated service token. Store that token in server-only variables:
 ```bash
 CF_ACCESS_CLIENT_ID=your-service-token-client-id
 CF_ACCESS_CLIENT_SECRET=your-service-token-secret
+TELEMETRY_WRITE_TOKEN=the-same-random-value-configured-on-the-backend
+ISTATUS_OPERATOR_EMAILS=operator1@example.com,operator2@example.com
+ISTATUS_ADMIN_EMAILS=admin@example.com
 ```
 
 The `/api/stats` route adds these credentials only to its server-side upstream
